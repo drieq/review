@@ -1,0 +1,23 @@
+# .gitignore for frontend
+/node_modules
+/dist
+/.vscode
+
+# .gitignore for backend
+/__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+
+# Logs
+*.log
+
+# IDEs
+.vscode
+.idea
+
+# OS-specific files
+.DS_Store
+Thumbs.db
