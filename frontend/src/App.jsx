@@ -1,28 +1,18 @@
-import { use, useEffect, useState } from 'react'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { useEffect, useState } from 'react'
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 
-import Dashboard from './pages/Dashboard';  // <-- Import Dashboard page
-import LoginPage from './pages/LoginPage';  // <-- Assuming you already have this page
+import useToken from './hooks/useToken'; // <-- Import useToken hook
+
+import Dashboard from './components/Dashboard';  // <-- Import Dashboard page
+import LoginPage from './components/LoginPage';  // <-- Import LoginPage
+import AlbumDetail from './components/AlbumDetail'; // <-- Import AlbumDetail page
+import Sidebar from './components/Sidebar'; // <-- Import Sidebar component
 
 import './App.css'
-import axios from 'axios'
-
-import Login from './Login'
-
-import { FiGrid, FiStar, FiSettings, FiLogOut, FiUser } from 'react-icons/fi';
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
-
-  useEffect(() => {
-    const token = localStorage.getItem('access');
-    const storedUsername = localStorage.getItem('username');
-    if (token && storedUsername) {
-      setLoggedIn(true);
-      setUsername(storedUsername);
-    }
-  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('access');
@@ -32,15 +22,57 @@ function App() {
     setUsername('');
   };
 
+  useToken(handleLogout);
+
+  useEffect(() => {
+    const token = localStorage.getItem('access');
+    const storedUsername = localStorage.getItem('username');
+
+    if (token && storedUsername) {
+      setLoggedIn(true);
+      setUsername(storedUsername);
+    }
+    }, []);
+
   return (
     <Router>
-      <Routes>
-        {/* Show LoginPage if user is not logged in */}
-        <Route path="/" element={loggedIn ? <Dashboard username={username} onLogout={handleLogout} /> : <LoginPage setLoggedIn={setLoggedIn} />} />
-        
-        {/* Only show Dashboard if logged in */}
-        <Route path="/dashboard" element={loggedIn ? <Dashboard username={username} onLogout={handleLogout} /> : <LoginPage setLoggedIn={setLoggedIn} />} />
-      </Routes>
+      <div className="flex w-full m-0">
+      {loggedIn && <Sidebar username={username} handleLogout={handleLogout} />}
+      <div className="flex-grow">
+          <Routes>
+            <Route
+              path="/"
+              element={
+                loggedIn ? (
+                  <Navigate to="/dashboard" replace />
+                ) : (
+                  <LoginPage setLoggedIn={setLoggedIn} setUsername={setUsername} />
+                )
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                loggedIn ? (
+                  <Dashboard username={username} handleLogout={handleLogout} />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
+            <Route 
+              path="/album/:id/" 
+              element={
+                loggedIn ? (
+                <AlbumDetail />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              } 
+            />
+          </Routes>
+        </div>
+      </div>
     </Router>
   );
 }
