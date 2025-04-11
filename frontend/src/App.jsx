@@ -7,12 +7,14 @@ import Dashboard from './components/Dashboard';  // <-- Import Dashboard page
 import LoginPage from './components/LoginPage';  // <-- Import LoginPage
 import AlbumDetail from './components/AlbumDetail'; // <-- Import AlbumDetail page
 import Sidebar from './components/Sidebar'; // <-- Import Sidebar component
+import LoadingSpinner from './components/LoadingSpinner';
 
 import './App.css'
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const handleLogout = () => {
     localStorage.removeItem('access');
@@ -32,7 +34,11 @@ function App() {
       setLoggedIn(true);
       setUsername(storedUsername);
     }
+
+    setLoading(false);
     }, []);
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <Router>

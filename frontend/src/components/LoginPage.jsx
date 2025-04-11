@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const LoginPage = ( { setLoggedIn, setUsername } ) => {
-  const [username, setUsernameInput] = useState('');
+  const [usernameInput, setUsernameInput] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -14,19 +14,21 @@ const LoginPage = ( { setLoggedIn, setUsername } ) => {
 
     try {
       const response = await axios.post('http://localhost:8000/api/token/', {
-        username,
+        username: usernameInput,
         password,
       });
       const { access, refresh } = response.data;
 
       localStorage.setItem('access', access);
       localStorage.setItem('refresh', refresh);
-      localStorage.setItem('username', username);
+      localStorage.setItem('username', usernameInput);
+
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access}`; 
 
       setLoggedIn(true);
-      setUsername(username);
-
+      setUsername(usernameInput);
       navigate('/dashboard');
+
     } catch (err) {
       console.error('Login error:', err);
       setError('Invalid username or password.');
@@ -40,7 +42,7 @@ const LoginPage = ( { setLoggedIn, setUsername } ) => {
         <input
           type="text"
           placeholder="Username"
-          value={username}
+          value={usernameInput}
           onChange={(e) => setUsernameInput(e.target.value)}
         />
         <input
