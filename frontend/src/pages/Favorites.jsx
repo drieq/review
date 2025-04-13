@@ -59,7 +59,9 @@ const Favorites = () => {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold">Favorite Photos</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Favorite Photos</h1>
+        </div>
         
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
