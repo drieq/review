@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/axiosConfig';
 import PhotoCard from '../components/PhotoCard';
+import PhotoListItem from '../components/PhotoListItem';
 
 const Favorites = () => {
   const [favoritePhotos, setFavoritePhotos] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [photoToDelete, setPhotoToDelete] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const modalRef = useRef(null);
   const { isAuthenticated, authTokens } = useAuth();
   const navigate = useNavigate();
@@ -79,7 +81,7 @@ const Favorites = () => {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-8">
         <div className="flex items-center justify-center h-full">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
@@ -88,12 +90,33 @@ const Favorites = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-8">
+      <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Favorite Photos</h1>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-lg transition-colors duration-200 ${
+                viewMode === 'grid' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-lg transition-colors duration-200 ${
+                viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
         </div>
-
-        <div className="max-w-7xl mx-auto">
         
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -106,9 +129,19 @@ const Favorites = () => {
             You haven't favorited any photos yet.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {favoritePhotos.map(photo => (
+          <div className={`transition-all duration-300 ${
+            viewMode === 'grid' 
+              ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4'
+              : 'space-y-4'
+          }`}>
+            {favoritePhotos.map(photo => viewMode === 'grid' ? (
               <PhotoCard
+                key={photo.id}
+                photo={photo}
+                onDelete={handleDelete}
+              />
+            ) : (
+              <PhotoListItem
                 key={photo.id}
                 photo={photo}
                 onDelete={handleDelete}
