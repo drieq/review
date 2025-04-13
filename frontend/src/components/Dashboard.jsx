@@ -45,7 +45,7 @@ const Dashboard = () => {
         <h1 className="text-3xl font-bold">Your Albums</h1>
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="px-4 py-2 cursor-pointer text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          className="px-4 py-2 cursor-pointer text-sm font-medium bg-blue-700 text-white rounded-md hover:bg-blue-800 transition-colors"
         >
           Create New Album
         </button>

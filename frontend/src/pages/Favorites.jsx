@@ -16,6 +16,17 @@ const Favorites = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Retrieve the view mode from local storage
+    const savedViewMode = localStorage.getItem('viewMode') || 'grid';
+    setViewMode(savedViewMode);
+  }, []);
+
+  useEffect(() => {
+    // Save the view mode to local storage whenever it changes
+    localStorage.setItem('viewMode', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
     if (!isAuthenticated || !authTokens?.access) {
       navigate('/login');
       return;

@@ -27,6 +27,17 @@ const AlbumDetail = () => {
   const deleteAlbumModalRef = useRef(null);
 
   useEffect(() => {
+    // Retrieve the view mode from local storage
+    const savedViewMode = localStorage.getItem('viewMode') || 'grid';
+    setViewMode(savedViewMode);
+  }, []);
+
+  useEffect(() => {
+    // Save the view mode to local storage whenever it changes
+    localStorage.setItem('viewMode', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
       return;
