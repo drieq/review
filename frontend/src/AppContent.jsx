@@ -11,6 +11,7 @@ import AlbumDetail from './components/AlbumDetail';
 import Sidebar from './components/Sidebar';
 import LoadingSpinner from './components/LoadingSpinner';
 import SessionExpiredModal from './components/SessionExpiredModal';
+import Favorites from './pages/Favorites';
 
 function AppContent() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -93,6 +94,16 @@ function AppContent() {
               element={
                 loggedIn ? (
                   <Dashboard username={username} handleLogout={handleLogout} />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
+            <Route
+              path="/favorites"
+              element={
+                loggedIn ? (
+                  <Favorites username={username} handleLogout={handleLogout} />
                 ) : (
                   <Navigate to="/" replace />
                 )

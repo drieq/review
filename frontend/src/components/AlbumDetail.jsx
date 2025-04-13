@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDropzone } from "react-dropzone";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-import api from '../api/axios';
 import PhotoCard from './PhotoCard';
 import Sidebar from './Sidebar';
 import { useAuth } from '../contexts/AuthContext';
+import api from '../api/axios';
 
 const AlbumDetail = () => {
   const { albumId } = useParams();
@@ -15,7 +14,6 @@ const AlbumDetail = () => {
   const [photos, setPhotos] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
@@ -23,6 +21,7 @@ const AlbumDetail = () => {
   const [photoToDelete, setPhotoToDelete] = useState(null);
   const titleInputRef = useRef(null);
   const descriptionInputRef = useRef(null);
+  const modalRef = useRef(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -61,8 +60,20 @@ const AlbumDetail = () => {
       }
     };
 
-    window.addEventListener('keydown', handleEscKey);
-    return () => window.removeEventListener('keydown', handleEscKey);
+    const handleClickOutside = (e) => {
+      if (modalRef.current && !modalRef.current.contains(e.target)) {
+        setPhotoToDelete(null);
+      }
+    };
+
+    if (photoToDelete) {
+      window.addEventListener('keydown', handleEscKey);
+      window.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleEscKey);
+      window.removeEventListener('mousedown', handleClickOutside);
+    };
   }, [photoToDelete]);
 
   const handleTitleChange = (e) => {
@@ -155,35 +166,6 @@ const AlbumDetail = () => {
     }
   };
 
-  const handleDragStart = () => {
-    setIsDragging(true);
-  };
-
-  const handleDragEnd = async (result) => {
-    setIsDragging(false);
-    
-    if (!result.destination) return;
-
-    const items = Array.from(photos);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-
-    setPhotos(items);
-
-    try {
-      await api.post(`/api/albums/${albumId}/reorder-photos/`, {
-        photo_orders: items.map((photo, index) => ({
-          id: photo.id,
-          order: index
-        }))
-      });
-      setError(null);
-    } catch (err) {
-      console.error('Error updating photo order:', err);
-      setError('Failed to update photo order. Please try again.');
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex h-screen bg-gray-100">
@@ -241,105 +223,74 @@ const AlbumDetail = () => {
               </button>
             </div>
 
-            <div className="mb-8">
-              <div className="space-y-4">
-                {isEditingTitle ? (
-                  <input
-                    ref={titleInputRef}
-                    type="text"
-                    value={editedTitle}
-                    onChange={handleTitleChange}
-                    onKeyDown={handleTitleKeyDown}
-                    onBlur={handleTitleBlur}
-                    className="w-full p-2 text-3xl font-bold text-gray-900 border-b-2 border-blue-500 focus:outline-none focus:ring-0"
-                    autoFocus
-                  />
-                ) : (
-                  <h1
-                    className="text-3xl font-bold text-gray-900 cursor-pointer hover:bg-gray-100 p-2 rounded border-b-2 border-transparent hover:border-gray-300"
-                    onClick={() => setIsEditingTitle(true)}
-                  >
-                    {album?.title}
-                  </h1>
-                )}
+            <div className="flex bg-white shadow-md rounded-lg p-6 mb-8">
+              <div className="mb-8 w-1/2 pe-3">
+                <div className="space-y-4">
+                  {isEditingTitle ? (
+                    <input
+                      ref={titleInputRef}
+                      type="text"
+                      value={editedTitle}
+                      onChange={handleTitleChange}
+                      onKeyDown={handleTitleKeyDown}
+                      onBlur={handleTitleBlur}
+                      className="w-full p-2 text-3xl font-bold text-gray-900 border-b-2 border-blue-500 focus:outline-none focus:ring-0"
+                      autoFocus
+                    />
+                  ) : (
+                    <h1
+                      className="text-3xl font-bold text-gray-900 cursor-pointer hover:bg-gray-100 p-2 rounded border-b-2 border-transparent hover:border-gray-300"
+                      onClick={() => setIsEditingTitle(true)}
+                    >
+                      {album?.title}
+                    </h1>
+                  )}
 
-                {isEditingDescription ? (
-                  <textarea
-                    ref={descriptionInputRef}
-                    value={editedDescription}
-                    onChange={handleDescriptionChange}
-                    onBlur={handleDescriptionBlur}
-                    className="w-full p-2 text-gray-600 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
-                    rows="3"
-                    autoFocus
-                  />
-                ) : (
-                  <p
-                    className="text-gray-600 cursor-pointer hover:bg-gray-100 p-2 rounded border border-transparent hover:border-gray-300 min-h-[80px]"
-                    onClick={() => setIsEditingDescription(true)}
-                  >
-                    {album?.description || 'Click to add a description'}
-                  </p>
-                )}
+                  {isEditingDescription ? (
+                    <textarea
+                      ref={descriptionInputRef}
+                      value={editedDescription}
+                      onChange={handleDescriptionChange}
+                      onBlur={handleDescriptionBlur}
+                      className="w-full p-2 text-gray-600 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
+                      rows="3"
+                      autoFocus
+                    />
+                  ) : (
+                    <p
+                      className="text-gray-600 cursor-pointer hover:bg-gray-100 p-2 rounded border border-transparent hover:border-gray-300 min-h-[80px]"
+                      onClick={() => setIsEditingDescription(true)}
+                    >
+                      {album?.description || 'Click to add a description'}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div
+                {...getRootProps()}
+                className={`w-1/2 flex items-center justify-center border-2 border-dashed rounded-lg p-8 text-center mb-8 ${
+                  isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                }`}
+              >
+                <input {...getInputProps()} />
+                <p className="text-gray-600 opacity-50 w-full">
+                  Drag and drop photos here, or click to select files
+                </p>
               </div>
             </div>
 
-            <div
-              {...getRootProps()}
-              className={`border-2 border-dashed rounded-lg p-8 text-center mb-8 ${
-                isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-              }`}
-            >
-              <input {...getInputProps()} />
-              <p className="text-gray-600">
-                Drag and drop photos here, or click to select files
-              </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {photos.map((photo) => (
+                <div key={photo.id} className="aspect-square">
+                  <PhotoCard
+                    photo={photo}
+                    onDelete={handleDeletePhoto}
+                    isDragging={false}
+                  />
+                </div>
+              ))}
             </div>
-            
-            <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-              <Droppable 
-                droppableId="photos" 
-                direction="horizontal" 
-                isDropDisabled={false}
-                isCombineEnabled={false}
-                ignoreContainerClipping={false}
-              >
-                {(provided) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-fr"
-                  >
-                    {photos.map((photo, index) => (
-                      <Draggable key={photo.id} draggableId={photo.id.toString()} index={index}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className={`aspect-square transition-transform duration-200 ${
-                              snapshot.isDragging ? 'z-50' : ''
-                            }`}
-                            style={{
-                              ...provided.draggableProps.style,
-                              gridColumn: 'auto',
-                              gridRow: 'auto'
-                            }}
-                          >
-                            <PhotoCard
-                              photo={photo}
-                              onDelete={handleDeletePhoto}
-                              isDragging={snapshot.isDragging}
-                            />
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
           </div>
         </div>
       </div>
@@ -347,7 +298,10 @@ const AlbumDetail = () => {
       {/* Delete Confirmation Modal */}
       {photoToDelete && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full transform transition-all duration-300 scale-100">
+          <div 
+            className="bg-white p-6 rounded-lg max-w-md w-full transform transition-all duration-300 scale-100"
+            ref={modalRef}
+          >
             <h3 className="text-lg font-medium mb-4">Delete Photo</h3>
             <p className="text-gray-600 mb-6">Are you sure you want to delete this photo? This action cannot be undone.</p>
             <div className="flex justify-end space-x-3">

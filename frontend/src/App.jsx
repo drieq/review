@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import AlbumDetail from './components/AlbumDetail';
+import Favorites from './pages/Favorites';
 import PrivateRoute from './components/PrivateRoute';
 
 import './App.css'
@@ -16,6 +17,7 @@ const AppRoutes = () => {
       <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/" />} />
       <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
       <Route path="/albums/:albumId" element={<PrivateRoute><AlbumDetail /></PrivateRoute>} />
+      <Route path="/favorites" element={<PrivateRoute><Favorites /></PrivateRoute>} />
     </Routes>
   );
 };

@@ -1,10 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import api from '../utils/axiosConfig';
+import { useNavigate } from 'react-router-dom';
 
 const CreateAlbumModal = ({ isOpen, onClose, onAlbumCreated }) => {
+  const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    const handleEscKey = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        isOpen = false;
+        onClose();
+      }
+    };
+
+    const handleClickOutside = (e) => {
+      if (modalRef.current && !modalRef.current.contains(e.target)) {
+        isOpen = false;
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      window.addEventListener('keydown', handleEscKey);
+      window.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleEscKey);
+      window.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,6 +47,7 @@ const CreateAlbumModal = ({ isOpen, onClose, onAlbumCreated }) => {
       setTitle('');
       setDescription('');
       onClose();
+      navigate(`/albums/${response.data.id}`);
     } catch (err) {
       console.error('Error creating album:', err);
       setError(err.response?.data?.error || 'Failed to create album');
@@ -28,12 +57,19 @@ const CreateAlbumModal = ({ isOpen, onClose, onAlbumCreated }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-lg w-[90%] max-w-md">
+    <div 
+      className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50"
+    >
+      <div 
+        className="bg-white p-6 rounded-lg shadow-lg w-[90%] max-w-md"
+        ref={modalRef}
+      >
         <h2 className="text-xl font-semibold mb-4">Create New Album</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+            <label 
+              htmlFor="title" 
+              className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
               Title
             </label>
             <input
@@ -41,19 +77,21 @@ const CreateAlbumModal = ({ isOpen, onClose, onAlbumCreated }) => {
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
               required
             />
           </div>
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+            <label 
+              htmlFor="description" 
+              className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
               Description
             </label>
             <textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
               rows={3}
             />
           </div>
