@@ -1,13 +1,20 @@
-import { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { isTokenExpired } from '../utils/tokenUtils';
-import axios from 'axios';
+import api from '../utils/axiosConfig';
 
-const useToken = (handleLogout) => {
+import SessionExpiredModal from '../components/SessionExpiredModal';
+
+const useToken = ({onSessionExpired}) => {
+
   useEffect(() => {
     const refreshToken = async () => {
       try {
         const refresh = localStorage.getItem('refresh');
+
+        if (!refresh) {
+          throw new Error('No refresh token found');
+        }
+
         const response = await fetch('/api/token/refresh/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -28,7 +35,14 @@ const useToken = (handleLogout) => {
         }
       } catch (err) {
         console.error(err);
-        handleLogout();
+
+        localStorage.removeItem('access');
+        localStorage.removeItem('refresh');
+        delete api.defaults.headers.common['Authorization'];
+        setLoggedIn(false);
+        setUsername('');
+
+        if (onSessionExpired) onSessionExpired();
       }
     };
 
@@ -44,16 +58,25 @@ const useToken = (handleLogout) => {
 
     const checkToken = () => {
       const token = localStorage.getItem('access');
-      if (token) {
-        const decoded = jwtDecode(token);
-        const expiresIn = decoded.exp * 1000 - Date.now();
+
+      if (!token) {
+        if (onSessionExpired) onSessionExpired();
+        return;
+      }
+
+      const decoded = jwtDecode(token);
+      const expiresIn = decoded.exp * 1000 - Date.now();
+
+      if (expiresIn < 0) {
+        if (onSessionExpired) onSessionExpired();
+      } else {
         console.log(`🕒 Access token expires in ${Math.round(expiresIn / 1000)} seconds`);
         scheduleRefresh(expiresIn);
       }
     };
 
     checkToken();
-  }, [handleLogout]);
+  }, [onSessionExpired]);
 };
 
 export default useToken;

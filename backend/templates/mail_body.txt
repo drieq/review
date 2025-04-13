@@ -1,0 +1,9 @@
+Welcome to Photo App!
+
+Thank you for registering. Please click the link below to verify your email address:
+
+{{ link }}
+
+If you did not create an account, you can safely ignore this email.
+
+This email was sent automatically. Please do not reply to this email. 
