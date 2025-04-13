@@ -25,16 +25,15 @@ const PhotoCard = ({ photo, onDelete, isDragging }) => {
   useEffect(() => {
     const checkFavoriteStatus = async () => {
       try {
-        const response = await api.get(`/api/photos/${photo.id}/`);
-        setIsFavorited(response.data.is_favorited);
+        const response = await api.get(`/api/favorites/`);
+        const isFavorited = response.data.some(favorite => favorite.id === photo.id);
+        setIsFavorited(isFavorited);
       } catch (error) {
         console.error('Error checking favorite status:', error);
       }
     };
 
     checkFavoriteStatus();
-    console.log('Photo ID:', photo.id);
-    console.log('Is favorited:', isFavorited);
   }, [photo.id]);
 
   const getImageUrl = (image) => {
@@ -70,22 +69,9 @@ const PhotoCard = ({ photo, onDelete, isDragging }) => {
   const handleFavorite = async () => {
     try {
       const response = await api.post(`/api/photos/${photo.id}/toggle-favorite/`);
-      const newFavoriteStatus = response.data.is_favorited;
-
-      console.log('API response:', response.data);
-      
-      setIsFavorited(newFavoriteStatus);
-
-      if (response.data.status === 'added') {
-        setToastMessage('Photo added to favorites');
-      } else if (response.data.status === 'removed') {
-        setToastMessage('Photo removed from favorites');
-      } else {
-        setToastMessage('Failed to update favorite status');
-      };
-
-      console.log('SetToastMessage:', toastMessage);
-
+      const newStatus = response.data.status === 'added';
+      setIsFavorited(newStatus);
+      setToastMessage(newStatus ? 'Photo added to favorites!' : 'Photo removed from favorites');
       setShowToast(true);
       setIsDropdownOpen(false);
     } catch (error) {
