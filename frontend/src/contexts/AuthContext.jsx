@@ -48,19 +48,48 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  const login = async (token) => {
+  const login = async (credentials) => {
     try {
-      const response = await fetch('http://localhost:8000/api/token/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          username: token.email || token,
-          password: token.password || 'google-oauth2-token'
-        }),
-      });
+      let response;
+      if (typeof credentials === 'string') {
+        // Regular login
+        response = await fetch('http://localhost:8000/api/token/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            username: credentials,
+            password: credentials
+          }),
+        });
+      } else if (credentials.access_token) {
+        // Google OAuth login
+        response = await fetch('http://localhost:8000/api/google/login/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            access_token: credentials.access_token
+          }),
+        });
+      } else {
+        // Regular email/password login
+        response = await fetch('http://localhost:8000/api/token/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            username: credentials.email,
+            password: credentials.password
+          }),
+        });
+      }
 
       if (!response.ok) {
         throw new Error('Login failed');

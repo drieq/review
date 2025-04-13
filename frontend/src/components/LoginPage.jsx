@@ -66,7 +66,18 @@ const LoginPage = () => {
           }
 
           try {
-            const success = await login(response.credential);
+            // Get user info from Google
+            const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+              headers: {
+                Authorization: `Bearer ${response.access_token}`
+              }
+            });
+            const userInfo = await userInfoResponse.json();
+
+            const success = await login({
+              email: userInfo.email,
+              access_token: response.access_token
+            });
             if (success) {
               navigate('/');
             } else {

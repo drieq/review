@@ -297,12 +297,18 @@ const AlbumDetail = () => {
             </div>
             
             <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-              <Droppable droppableId="photos" direction="horizontal">
+              <Droppable 
+                droppableId="photos" 
+                direction="horizontal" 
+                isDropDisabled={false}
+                isCombineEnabled={false}
+                ignoreContainerClipping={false}
+              >
                 {(provided) => (
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+                    className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 auto-rows-fr"
                   >
                     {photos.map((photo, index) => (
                       <Draggable key={photo.id} draggableId={photo.id.toString()} index={index}>
@@ -311,9 +317,14 @@ const AlbumDetail = () => {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`transition-transform duration-200 ${
+                            className={`aspect-square transition-transform duration-200 ${
                               snapshot.isDragging ? 'z-50' : ''
                             }`}
+                            style={{
+                              ...provided.draggableProps.style,
+                              gridColumn: 'auto',
+                              gridRow: 'auto'
+                            }}
                           >
                             <PhotoCard
                               photo={photo}
