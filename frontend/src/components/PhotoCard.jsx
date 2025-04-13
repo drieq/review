@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import api from '../utils/axiosConfig';
 
 const PhotoCard = ({ photo, onDelete, isDragging }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -16,6 +18,19 @@ const PhotoCard = ({ photo, onDelete, isDragging }) => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      try {
+        const response = await api.get(`/api/favorites/${photo.id}/`);
+        setIsFavorited(response.data.is_favorited);
+      } catch (error) {
+        console.error('Error checking favorite status:', error);
+      }
+    };
+
+    checkFavoriteStatus();
+  }, [photo.id]);
 
   const getImageUrl = (image) => {
     if (!image) return '';
@@ -45,6 +60,20 @@ const PhotoCard = ({ photo, onDelete, isDragging }) => {
   const handleDeleteClick = () => {
     setIsDropdownOpen(false);
     onDelete(photo.id);
+  };
+
+  const handleFavorite = async () => {
+    try {
+      if (isFavorited) {
+        await api.delete(`/api/favorites/${photo.id}/`);
+      } else {
+        await api.post(`/api/favorites/${photo.id}/`);
+      }
+      setIsFavorited(!isFavorited);
+      setIsDropdownOpen(false);
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
   };
 
   return (
@@ -87,6 +116,12 @@ const PhotoCard = ({ photo, onDelete, isDragging }) => {
                 >
                   Download
                 </a>
+                <button
+                  onClick={handleFavorite}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                >
+                  {isFavorited ? 'Remove from Favorites' : 'Add to Favorites'}
+                </button>
                 <button
                   onClick={handleDeleteClick}
                   className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors duration-200"

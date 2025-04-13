@@ -1,5 +1,5 @@
 import { FiGrid, FiStar, FiSettings, FiLogOut, FiUser } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, NavLink } from 'react-router-dom';
 import logo from '../assets/logo.svg';
 
 const Sidebar = ({ username, onLogout }) => {
@@ -21,13 +21,25 @@ const Sidebar = ({ username, onLogout }) => {
         <nav className="mt-auto mb-auto">
           <ul className="space-y-2 font-medium">
             <li>
-              <a 
-                href="/" 
-                className="flex items-center p-2 text-indigo-600 rounded-lg dark:text-white hover:bg-gray-100 hover:text-indigo-600 dark:hover:bg-gray-700 group">
-
-                <div className="w-5 h-5">
-                  <svg
-                    className="shrink-0 w-full h-full text-indigo-600 transition duration-75 dark:text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-white"
+            <NavLink
+              to="/"
+              className={({ isActive }) =>
+                `flex items-center p-2 rounded-lg group transition-colors ${
+                  isActive
+                    ? 'text-indigo-600 bg-gray-100 dark:text-white dark:bg-gray-700'
+                    : 'text-gray-900 dark:text-white hover:bg-gray-100 hover:text-indigo-600 dark:hover:bg-gray-700'
+                }`
+              }
+            >
+                {({ isActive }) => (
+                <>
+                  <div className="w-5 h-5">
+                    <svg
+                      className={`shrink-0 w-full h-full transition duration-75 ${
+                        isActive
+                          ? 'text-indigo-600 dark:text-white'
+                          : 'text-gray-500 dark:text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-white'
+                      }`}
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24" 
                     fill="currentColor"
@@ -39,29 +51,46 @@ const Sidebar = ({ username, onLogout }) => {
                   </svg>
                 </div>
                 <span className="flex-1 ms-3 whitespace-nowrap">Dashboard</span>
-              </a>
+                </>
+              )}
+            </NavLink>
             </li>
             <li>
-              <a 
-                href="/favorites" 
-                className="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 hover:text-indigo-600 dark:hover:bg-gray-700 group">
-                <div className="w-5 h-5">
-                  <svg
-                    className="shrink-0 w-full h-full text-gray-500 transition duration-75 dark:text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
+            <NavLink
+              to="/favorites"
+              className={({ isActive }) =>
+                `flex items-center p-2 rounded-lg group transition-colors ${
+                  isActive
+                    ? 'text-indigo-600 bg-gray-100 dark:text-white dark:bg-gray-700'
+                    : 'text-gray-900 dark:text-white hover:bg-gray-100 hover:text-indigo-600 dark:hover:bg-gray-700'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <div className="w-5 h-5">
+                    <svg
+                      className={`shrink-0 w-full h-full transition duration-75 ${
+                        isActive
+                          ? 'text-indigo-600 dark:text-white'
+                          : 'text-gray-500 dark:text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-white'
+                      }`}
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
                   <span className="flex-1 ms-3 whitespace-nowrap">Favorites</span>
-              </a>
+                </>
+              )}
+            </NavLink>
             </li>
             <li>
               <a 
