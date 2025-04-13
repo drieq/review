@@ -19,7 +19,7 @@ from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from allauth.socialaccount.models import SocialAccount
 import requests
 
-from .models import Photo, Album
+from .models import Photo, Album, Favorite
 from .serializers import PhotoSerializer, AlbumSerializer, UserSerializer, CustomTokenObtainPairSerializer
 
 User = get_user_model()
@@ -206,3 +206,23 @@ class UserViewSet(viewsets.ViewSet):
         user = request.user
         serializer = UserSerializer(user)
         return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_favorites(request):
+    favorites = Favorite.objects.filter(user=request.user)
+    photos = [favorite.photo for favorite in favorites]
+    serializer = PhotoSerializer(photos, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def toggle_favorite(request, photo_id):
+    photo = get_object_or_404(Photo, id=photo_id)
+    favorite, created = Favorite.objects.get_or_create(user=request.user, photo=photo)
+    
+    if not created:
+        favorite.delete()
+        return Response({'status': 'removed'})
+    
+    return Response({'status': 'added'})

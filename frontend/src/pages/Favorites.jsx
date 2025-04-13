@@ -1,19 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import api from '../services/api';
+import api from '../utils/axiosConfig';
 import PhotoCard from '../components/PhotoCard';
-import Sidebar from '../components/Sidebar';
 
 const Favorites = () => {
   const [favoritePhotos, setFavoritePhotos] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, authTokens } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !authTokens?.access) {
       navigate('/login');
       return;
     }
@@ -35,7 +34,7 @@ const Favorites = () => {
     };
 
     fetchFavorites();
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, authTokens, navigate]);
 
   const handleDelete = async (photoId) => {
     try {
@@ -49,46 +48,40 @@ const Favorites = () => {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen">
-        <Sidebar />
-        <div className="flex-1 p-8">
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-          </div>
+      <div className="p-8">
+        <div className="flex items-center justify-center h-full">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen">
-      <Sidebar />
-      <div className="flex-1 p-8 overflow-auto">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">Favorite Photos</h1>
-          
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
-            </div>
-          )}
+    <div className="p-8">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold">Favorite Photos</h1>
+        
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
 
-          {favoritePhotos.length === 0 ? (
-            <div className="text-center text-gray-500">
-              You haven't favorited any photos yet.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {favoritePhotos.map(photo => (
-                <PhotoCard
-                  key={photo.id}
-                  photo={photo}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        {favoritePhotos.length === 0 ? (
+          <div className="text-center text-gray-500">
+            You haven't favorited any photos yet.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {favoritePhotos.map(photo => (
+              <PhotoCard
+                key={photo.id}
+                photo={photo}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

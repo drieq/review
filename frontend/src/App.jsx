@@ -6,19 +6,29 @@ import Dashboard from './components/Dashboard';
 import AlbumDetail from './components/AlbumDetail';
 import Favorites from './pages/Favorites';
 import PrivateRoute from './components/PrivateRoute';
+import Sidebar from './components/Sidebar';
 
 import './App.css'
 
 const AppRoutes = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   return (
-    <Routes>
-      <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/" />} />
-      <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-      <Route path="/albums/:albumId" element={<PrivateRoute><AlbumDetail /></PrivateRoute>} />
-      <Route path="/favorites" element={<PrivateRoute><Favorites /></PrivateRoute>} />
-    </Routes>
+    <div className="flex h-screen">
+      <Sidebar username={user?.username} onLogout={logout} />
+      <main className="flex-1 overflow-auto">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/albums/:albumId" element={<AlbumDetail />} />
+          <Route path="/favorites" element={<Favorites />} />
+          <Route path="/login" element={<Navigate to="/" />} />
+        </Routes>
+      </main>
+    </div>
   );
 };
 

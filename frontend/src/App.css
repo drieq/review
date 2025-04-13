@@ -87,7 +87,7 @@ button:hover {
   /* font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; */
 }
 
-.sidebar {
+/* .sidebar {
   width: 250px;
   background-color: #111827;
   color: white;
@@ -95,7 +95,7 @@ button:hover {
   flex-direction: column;
   justify-content: space-between;
   padding: 20px;
-}
+} */
 
 .logo {
   font-size: 24px;
@@ -138,13 +138,13 @@ button:hover {
   border-radius: 9999px;
 }
 
-.user-footer button {
+/* .user-footer button {
   background: none;
   border: none;
   color: #e5e7eb;
   cursor: pointer;
   margin-top: 0;
-}
+} */
 
 .main-content {
   flex: 1;

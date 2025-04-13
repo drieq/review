@@ -7,10 +7,14 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authTokens, setAuthTokens] = useState({
+    access: localStorage.getItem('access'),
+    refresh: localStorage.getItem('refresh')
+  });
 
   useEffect(() => {
     const checkAuth = async () => {
-      const accessToken = localStorage.getItem('access');
+      const accessToken = authTokens?.access;
       if (accessToken) {
         try {
           // Set the authorization header
@@ -31,6 +35,7 @@ export const AuthProvider = ({ children }) => {
             localStorage.removeItem('access');
             localStorage.removeItem('refresh');
             localStorage.removeItem('username');
+            setAuthTokens({ access: null, refresh: null });
             api.defaults.headers.common['Authorization'] = null;
           }
         } catch (error) {
@@ -39,6 +44,7 @@ export const AuthProvider = ({ children }) => {
           localStorage.removeItem('access');
           localStorage.removeItem('refresh');
           localStorage.removeItem('username');
+          setAuthTokens({ access: null, refresh: null });
           api.defaults.headers.common['Authorization'] = null;
         }
       }
@@ -46,66 +52,42 @@ export const AuthProvider = ({ children }) => {
     };
 
     checkAuth();
-  }, []);
+  }, [authTokens]);
 
   const login = async (credentials) => {
     try {
       let response;
       if (typeof credentials === 'string') {
         // Regular login
-        response = await fetch('http://localhost:8000/api/token/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            username: credentials,
-            password: credentials
-          }),
+        response = await api.post('/api/token/', {
+          username: credentials,
+          password: credentials
         });
       } else if (credentials.access_token) {
         // Google OAuth login
-        response = await fetch('http://localhost:8000/api/google/login/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            access_token: credentials.access_token
-          }),
+        response = await api.post('/api/google/login/', {
+          access_token: credentials.access_token
         });
       } else {
         // Regular email/password login
-        response = await fetch('http://localhost:8000/api/token/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            username: credentials.email,
-            password: credentials.password
-          }),
+        response = await api.post('/api/token/', {
+          username: credentials.email,
+          password: credentials.password
         });
       }
 
-      if (!response.ok) {
-        throw new Error('Login failed');
-      }
-
-      const data = await response.json();
+      const data = response.data;
       
       // Store the tokens
       localStorage.setItem('access', data.access);
       localStorage.setItem('refresh', data.refresh);
       localStorage.setItem('username', data.username);
       
-      // Set the authorization header
-      api.defaults.headers.common['Authorization'] = `Bearer ${data.access}`;
-      
       // Update auth state
+      setAuthTokens({
+        access: data.access,
+        refresh: data.refresh
+      });
       setIsAuthenticated(true);
       setUser({
         username: data.username
@@ -118,11 +100,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = () => {
     try {
       localStorage.removeItem('access');
       localStorage.removeItem('refresh');
       localStorage.removeItem('username');
+      setAuthTokens({ access: null, refresh: null });
       api.defaults.headers.common['Authorization'] = null;
       setIsAuthenticated(false);
       setUser(null);
@@ -132,7 +115,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, isLoading, authTokens }}>
       {children}
     </AuthContext.Provider>
   );

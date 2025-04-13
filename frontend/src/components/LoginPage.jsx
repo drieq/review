@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import api from '../utils/axiosConfig';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 
 const LoginPage = () => {
@@ -57,7 +56,7 @@ const LoginPage = () => {
     try {
       const client = window.google.accounts.oauth2.initTokenClient({
         client_id: import.meta.env.VITE_GOOGLE_OAUTH2_CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+        scope: 'email profile',
         callback: async (response) => {
           if (response.error) {
             console.error('Google OAuth2 error:', response.error);
@@ -66,16 +65,7 @@ const LoginPage = () => {
           }
 
           try {
-            // Get user info from Google
-            const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-              headers: {
-                Authorization: `Bearer ${response.access_token}`
-              }
-            });
-            const userInfo = await userInfoResponse.json();
-
             const success = await login({
-              email: userInfo.email,
               access_token: response.access_token
             });
             if (success) {

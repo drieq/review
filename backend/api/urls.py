@@ -11,6 +11,8 @@ urlpatterns = [
     path('user/', views.UserViewSet.as_view({'get': 'retrieve'}), name='user-detail'),
     path('register/', views.register, name='register'),
     path('albums/<int:album_id>/reorder-photos/', views.reorder_photos, name='reorder-photos'),
+    path('favorites/', views.get_favorites, name='get-favorites'),
+    path('photos/<int:photo_id>/toggle-favorite/', views.toggle_favorite, name='toggle-favorite'),
 ]
 
 urlpatterns += router.urls
