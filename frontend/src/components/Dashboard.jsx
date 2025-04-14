@@ -57,6 +57,20 @@ const Dashboard = ( sidebarOpen ) => {
         </div>
       )}
 
+{albums.length === 0 ? (
+  <div className="text-center text-gray-500 mt-20">
+    <div className="flex justify-center mb-4">
+      
+    </div>
+    <p className="mb-4 text-lg">You haven’t created any albums yet.</p>
+    <button
+      onClick={() => setIsCreateModalOpen(true)}
+      className="inline-block px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
+    >
+      Create your first album
+    </button>
+  </div>
+    ) : (
       <div className="grid grid-cols-1 justify-items-center max-w-7xl mx-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {albums.map(album => (
           <AlbumCard
@@ -66,6 +80,8 @@ const Dashboard = ( sidebarOpen ) => {
           />
         ))}
       </div>
+    )}
+
 
       <CreateAlbumModal
         isOpen={isCreateModalOpen}

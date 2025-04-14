@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import api from '../utils/axiosConfig';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
+import defaultAvatar from '../assets/default-avatar.png';
 
 const UserProfile = ({ onUserDataUpdate, successMessage, setSuccessMessage }) => {
   const { user } = useAuth(); // Get user data from context
@@ -80,7 +81,7 @@ const UserProfile = ({ onUserDataUpdate, successMessage, setSuccessMessage }) =>
 
   // Define the base URL for media files
   const baseUrl = 'http://localhost:8000'; // Adjust this to your actual base URL
-  const avatarUrl = userData.avatar ? `${baseUrl}${userData.avatar}` : 'default-avatar.png'; // Construct the full URL
+  const avatarUrl = userData.avatar ? `${baseUrl}${userData.avatar}` : defaultAvatar; // Construct the full URL
 
   return (
     <div className="max-w-lg mx-auto mt-10 bg-white shadow-md rounded-lg p-6 mb-8">

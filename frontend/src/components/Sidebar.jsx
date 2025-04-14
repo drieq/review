@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import logo from '../assets/logo.svg';
 import api from '../utils/axiosConfig';
+import defaultAvatar from '../assets/default-avatar.png';
+
 
 const Sidebar = ({ username, onLogout, userData,onUserDataUpdate, sidebarOpen, toggleSidebar }) => {
   const navigate = useNavigate();
@@ -21,7 +23,7 @@ const Sidebar = ({ username, onLogout, userData,onUserDataUpdate, sidebarOpen, t
 
     // Define the base URL for media files
   const baseUrl = 'http://localhost:8000'; // Adjust this to your actual base URL
-  const avatarUrl = userData?.avatar ? `${baseUrl}${userData.avatar}` : 'default-avatar.png'; // Construct the full URL
+  const avatarUrl = userData?.avatar ? `${baseUrl}${userData.avatar}` : defaultAvatar; // Construct the full URL
 
   if (!userData) {
     return <LoadingSpinner />;
