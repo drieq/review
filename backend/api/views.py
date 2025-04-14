@@ -19,7 +19,7 @@ from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from allauth.socialaccount.models import SocialAccount
 import requests
 
-from .models import Photo, Album, Favorite
+from .models import Photo, Album, Favorite, UserProfile
 from .serializers import PhotoSerializer, AlbumSerializer, UserSerializer, CustomTokenObtainPairSerializer
 
 User = get_user_model()
@@ -29,6 +29,18 @@ User = get_user_model()
 def current_user(request):
     serializer = UserSerializer(request.user)
     return Response(serializer.data)
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_user(request):
+    user = request.user
+    serializer = UserSerializer(user, data=request.data, partial=True)
+
+    if serializer.is_valid():
+        serializer.save()
+        return Response({'message': 'User updated successfully.'}, status=status.HTTP_200_OK)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -54,23 +66,51 @@ def google_login(request):
             return Response({'error': 'Access token is required'}, status=400)
 
         # Get user info from Google
-        user_info = requests.get(
+        user_info_response = requests.get(
             'https://www.googleapis.com/oauth2/v3/userinfo',
             params={'access_token': access_token}
-        ).json()
+        )
+
+        # Check if the request to Google was successful
+        if user_info_response.status_code != 200:
+            return Response({'error': 'Failed to retrieve user info from Google'}, status=400)
+
+        user_info = user_info_response.json()
 
         if 'error' in user_info:
             return Response({'error': 'Invalid access token'}, status=400)
 
-        # Get or create user
-        try:
-            social_account = SocialAccount.objects.get(provider='google', uid=user_info['sub'])
-            user = social_account.user
-        except SocialAccount.DoesNotExist:
-            # Create new user
+        email = user_info.get('email')
+        if not email:
+            return Response({'error': 'Email not found in user info'}, status=400)
+
+        # Check if a user with this email already exists
+        user = User.objects.filter(email=email).first()
+        if user:
+            # User exists, log them in
+            from rest_framework_simplejwt.tokens import RefreshToken
+            refresh = RefreshToken.for_user(user)
+            
+            response = Response({
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'username': user.username
+            })
+            
+            # Set CSRF cookie
+            response.set_cookie(
+                'csrftoken',
+                get_token(request),
+                httponly=True,
+                samesite='Lax',
+                secure=False  # Set to True in production
+            )
+            return response
+        else:
+            # Create new user if they don't exist
             user = User.objects.create_user(
-                username=user_info['email'].split('@')[0],
-                email=user_info['email'],
+                username=email.split('@')[0],  # Use email prefix as username
+                email=email,
                 first_name=user_info.get('given_name', ''),
                 last_name=user_info.get('family_name', '')
             )
@@ -82,30 +122,27 @@ def google_login(request):
                 extra_data=user_info
             )
 
-        # Generate JWT tokens
-        from rest_framework_simplejwt.tokens import RefreshToken
-        refresh = RefreshToken.for_user(user)
-        
-        response = Response({
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
-            'username': user.username
-        })
-        
-        # Set CSRF cookie
-        response.set_cookie(
-            'csrftoken',
-            get_token(request),
-            httponly=True,
-            samesite='Lax',
-            secure=False  # Set to True in production
-        )
-        
-        return response
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            response = Response({
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'username': user.username
+            })
+            
+            # Set CSRF cookie
+            response.set_cookie(
+                'csrftoken',
+                get_token(request),
+                httponly=True,
+                samesite='Lax',
+                secure=False  # Set to True in production
+            )
+            return response
 
     except Exception as e:
-        print(f"Error in google_login: {str(e)}")  # Add logging
-        return Response({'error': str(e)}, status=500)
+        print(f"Error in google_login: {str(e)}")  # Log the error
+        return Response({'error': 'An unexpected error occurred. Please try again.'}, status=500)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -226,3 +263,20 @@ def toggle_favorite(request, photo_id):
         return Response({'status': 'removed'})
     
     return Response({'status': 'added'})
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_avatar(request):
+    try:
+        user_profile = UserProfile.objects.get(user=request.user)  # Get the user's profile
+    except UserProfile.DoesNotExist:
+        return Response({'error': 'User profile does not exist.'}, status=404)
+
+    avatar = request.FILES.get('avatar')  # Get the uploaded avatar file
+
+    if avatar:
+        user_profile.avatar = avatar  # Update the avatar field
+        user_profile.save()  # Save the profile
+        return Response({'message': 'Avatar updated successfully.'})
+
+    return Response({'error': 'No avatar provided.'}, status=400)

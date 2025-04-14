@@ -1,20 +1,36 @@
 import { FiGrid, FiStar, FiSettings, FiLogOut, FiMenu } from 'react-icons/fi';
 import { useNavigate, NavLink } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import LoadingSpinner from './LoadingSpinner';
 import logo from '../assets/logo.svg';
+import api from '../utils/axiosConfig';
 
-const Sidebar = ({ username, onLogout, sidebarOpen, toggleSidebar }) => {
+const Sidebar = ({ username, onLogout, userData,onUserDataUpdate, sidebarOpen, toggleSidebar }) => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (onUserDataUpdate) {
+      onUserDataUpdate(userData);
+    }
+  }, [userData]);
 
   const handleLogout = () => {
     onLogout();
     navigate('/login');
   };
 
+    // Define the base URL for media files
+  const baseUrl = 'http://localhost:8000'; // Adjust this to your actual base URL
+  const avatarUrl = userData?.avatar ? `${baseUrl}${userData.avatar}` : 'default-avatar.png'; // Construct the full URL
+
+  if (!userData) {
+    return <LoadingSpinner />;
+  }
+
   return (
     <>
     <button
       onClick={() => {
-        console.log("Clickeddd!");
         toggleSidebar();
       }}
       className="absolute top-4 left-4 z-50 p-2 text-gray-600 bg-white rounded-md shadow sm:hidden"
@@ -138,10 +154,21 @@ const Sidebar = ({ username, onLogout, sidebarOpen, toggleSidebar }) => {
         <div className="p-4 flex items-center mt-auto space-x-3">
           <img
           className="h-10 w-10 rounded-full object-cover"
-          src="https://images.unsplash.com/photo-1502685104226-ee32379fefbe"
+          src={avatarUrl}
           alt="User avatar"
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = 'default-avatar.png';
+          }}
           />
+          <a onClick={() => {
+            navigate('/profile');
+            toggleSidebar();
+          }}
+          className="flex items-center p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 hover:text-indigo-600 dark:hover:bg-gray-700 group"
+          >
           <span className="text-sm font-medium text-gray-900">{username}</span>
+          </a>
           <button 
             onClick={handleLogout}
             className="flex items-end ms-auto p-2 text-gray-900 rounded-lg dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 group"

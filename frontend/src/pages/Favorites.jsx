@@ -11,20 +11,23 @@ const Favorites = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [photoToDelete, setPhotoToDelete] = useState(null);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const modalRef = useRef(null);
   const { isAuthenticated, authTokens, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('viewMode') || 'grid';
+  });
 
   if(authLoading) {
     return <LoadingSpinner />;
   }
 
-  useEffect(() => {
-    // Retrieve the view mode from local storage
-    const savedViewMode = localStorage.getItem('viewMode') || 'grid';
-    setViewMode(savedViewMode);
-  }, []);
+  // useEffect(() => {
+  //   // Retrieve the view mode from local storage
+  //   const savedViewMode = localStorage.getItem('viewMode') || 'grid';
+  //   setViewMode(savedViewMode);
+  // }, []);
 
   useEffect(() => {
     // Save the view mode to local storage whenever it changes

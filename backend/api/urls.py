@@ -13,6 +13,7 @@ urlpatterns = [
     path('albums/<int:album_id>/reorder-photos/', views.reorder_photos, name='reorder-photos'),
     path('favorites/', views.get_favorites, name='get-favorites'),
     path('photos/<int:photo_id>/toggle-favorite/', views.toggle_favorite, name='toggle-favorite'),
+    path('user/update-avatar/', views.update_avatar, name='update_avatar'),
 ]
 
 urlpatterns += router.urls

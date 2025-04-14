@@ -20,17 +20,20 @@ const AlbumDetail = () => {
   const [editedDescription, setEditedDescription] = useState('');
   const [photoToDelete, setPhotoToDelete] = useState(null);
   const [showDeleteAlbumModal, setShowDeleteAlbumModal] = useState(false);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const titleInputRef = useRef(null);
   const descriptionInputRef = useRef(null);
   const modalRef = useRef(null);
   const deleteAlbumModalRef = useRef(null);
 
-  useEffect(() => {
-    // Retrieve the view mode from local storage
-    const savedViewMode = localStorage.getItem('viewMode') || 'grid';
-    setViewMode(savedViewMode);
-  }, []);
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('viewMode') || 'grid';
+  });
+
+  // useEffect(() => {
+  //   // Retrieve the view mode from local storage
+  //   const savedViewMode = localStorage.getItem('viewMode') || 'grid';
+  //   setViewMode(savedViewMode);
+  // }, []);
 
   useEffect(() => {
     // Save the view mode to local storage whenever it changes

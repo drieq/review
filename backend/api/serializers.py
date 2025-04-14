@@ -4,6 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from .models import Photo, Album
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.conf import settings
 
 User = get_user_model()
 
@@ -13,39 +14,31 @@ User = get_user_model()
 #         fields = ('id', 'email', 'first_name', 'last_name', 'password')
 
 class UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    password2 = serializers.CharField(write_only=True, required=True)
+    avatar = serializers.ImageField(source='userprofile.avatar', required=False)
 
     class Meta:
         model = User
-        fields = ('id', 'email', 'username', 'password', 'password2')
+        fields = ['username', 'email', 'avatar']
         extra_kwargs = {
             'email': {'required': True},
             'username': {'required': True},
         }
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({"password": "Password fields didn't match."})
-        
-        # Check if username already exists
-        if User.objects.filter(username=attrs['username']).exists():
-            raise serializers.ValidationError({"username": "Username is already taken."})
-        
-        # Check if email already exists
-        if User.objects.filter(email=attrs['email']).exists():
-            raise serializers.ValidationError({"email": "Email is already registered."})
-        
+        # Remove password validation since it's not needed for GET requests
         return attrs
 
-    def create(self, validated_data):
-        validated_data.pop('password2')
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password']
-        )
-        return user
+    def update(self, instance, validated_data):
+        # Update the user instance with the validated data
+        instance.username = validated_data.get('username', instance.username)
+        instance.email = validated_data.get('email', instance.email)
+
+        # Update avatar if provided
+        if 'avatar' in validated_data:
+            instance.avatar = validated_data['avatar']
+
+        instance.save()
+        return instance
 
 class PhotoSerializer(serializers.ModelSerializer):
     class Meta:
