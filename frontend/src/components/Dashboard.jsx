@@ -41,7 +41,7 @@ const Dashboard = ( sidebarOpen ) => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 max-w-7xl mx-auto">
         <h1 className='text-3xl font-bold ml-12 sm:ml-0'>Your Albums</h1>
         <button
           onClick={() => setIsCreateModalOpen(true)}
@@ -57,7 +57,7 @@ const Dashboard = ( sidebarOpen ) => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 justify-items-center sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 justify-items-center max-w-7xl mx-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {albums.map(album => (
           <AlbumCard
             key={album.id}
