@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../utils/axiosConfig';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const AuthContext = createContext(null);
 
@@ -52,7 +53,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     checkAuth();
-  }, [authTokens]);
+  }, []);
 
   const login = async (credentials) => {
     try {
@@ -115,10 +116,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, isLoading, authTokens }}>
-      {children}
-    </AuthContext.Provider>
-  );
+    isLoading ? (
+      <LoadingSpinner />
+    ) : (
+      <AuthContext.Provider value={{ isAuthenticated, user, login, logout, isLoading, authTokens }}>
+        {children}
+      </AuthContext.Provider>
+    )
+  )
 };
 
 export const useAuth = () => {

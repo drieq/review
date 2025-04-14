@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginPage from './components/LoginPage';
@@ -12,6 +12,12 @@ import './App.css'
 
 const AppRoutes = () => {
   const { isAuthenticated, user, logout } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const toggleSidebar = () => {
+    console.log("Toggled!");
+    setSidebarOpen(!sidebarOpen);
+  }
 
   if (!isAuthenticated) {
     return <LoginPage />;
@@ -19,10 +25,10 @@ const AppRoutes = () => {
 
   return (
     <div className="flex h-screen">
-      <Sidebar username={user?.username} onLogout={logout} />
+      <Sidebar username={user?.username} onLogout={logout} sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
       <main className="flex-1 overflow-auto">
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<Dashboard sidebarOpen={sidebarOpen} />} />
           <Route path="/albums/:albumId" element={<AlbumDetail />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/login" element={<Navigate to="/" />} />

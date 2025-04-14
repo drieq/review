@@ -1,8 +1,8 @@
-import { FiGrid, FiStar, FiSettings, FiLogOut, FiUser } from 'react-icons/fi';
+import { FiGrid, FiStar, FiSettings, FiLogOut, FiMenu } from 'react-icons/fi';
 import { useNavigate, NavLink } from 'react-router-dom';
 import logo from '../assets/logo.svg';
 
-const Sidebar = ({ username, onLogout }) => {
+const Sidebar = ({ username, onLogout, sidebarOpen, toggleSidebar }) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -11,8 +11,29 @@ const Sidebar = ({ username, onLogout }) => {
   };
 
   return (
-    <aside 
-      className="sidebar h-screen sticky top-0 left-0 z-40 w-64 transition-transform -translate-x-full sm:translate-x-0"
+    <>
+    <button
+      onClick={() => {
+        console.log("Clickeddd!");
+        toggleSidebar();
+      }}
+      className="absolute top-4 left-4 z-50 p-2 text-gray-600 bg-white rounded-md shadow sm:hidden"
+    >
+      <FiMenu size={24} />
+    </button>
+
+    {/* Overlay for mobile when sidebar is open */}
+    {sidebarOpen && (
+    <div
+      className="fixed inset-0 bg-black/30 backdrop-blur-sm z-30 sm:hidden"
+      onClick={toggleSidebar}
+    />
+  )}
+
+  <aside
+        className={`fixed top-0 left-0 z-40 w-64 h-screen transition-transform transform bg-white dark:bg-gray-800 border-r border-gray-200 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } sm:translate-x-0 sm:static sm:inset-0`}
       id="default-sidebar"
     >
       <div className="h-screen flex flex-col justify-between border-r border-gray-200 px-3 py-4 overflow-y-auto bg-white dark:bg-gray-800">
@@ -30,6 +51,7 @@ const Sidebar = ({ username, onLogout }) => {
                     : 'text-gray-900 dark:text-white hover:bg-gray-100 hover:text-indigo-600 dark:hover:bg-gray-700'
                 }`
               }
+              onClick={() => toggleSidebar()} // Auto-close on mobile
             >
                 {({ isActive }) => (
                 <>
@@ -65,6 +87,7 @@ const Sidebar = ({ username, onLogout }) => {
                     : 'text-gray-900 dark:text-white hover:bg-gray-100 hover:text-indigo-600 dark:hover:bg-gray-700'
                 }`
               }
+              onClick={() => toggleSidebar()} // Auto-close on mobile
             >
               {({ isActive }) => (
                 <>
@@ -128,6 +151,7 @@ const Sidebar = ({ username, onLogout }) => {
         </div>
       </div>
     </aside>
+    </>
   );
 };
 

@@ -5,7 +5,7 @@ import CreateAlbumModal from './CreateAlbumModal';
 import AlbumCard from "./AlbumCard";
 import { useAuth } from '../contexts/AuthContext';
 
-const Dashboard = () => {
+const Dashboard = ( sidebarOpen ) => {
   const [albums, setAlbums] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [error, setError] = useState(null);
@@ -42,7 +42,7 @@ const Dashboard = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Your Albums</h1>
+        <h1 className='text-3xl font-bold ml-12 sm:ml-0'>Your Albums</h1>
         <button
           onClick={() => setIsCreateModalOpen(true)}
           className="px-4 py-2 cursor-pointer text-sm font-medium bg-blue-700 text-white rounded-md hover:bg-blue-800 transition-colors"
@@ -57,7 +57,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 justify-items-center sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {albums.map(album => (
           <AlbumCard
             key={album.id}

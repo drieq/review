@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/axiosConfig';
 import PhotoCard from '../components/PhotoCard';
 import PhotoListItem from '../components/PhotoListItem';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Favorites = () => {
   const [favoritePhotos, setFavoritePhotos] = useState([]);
@@ -12,8 +13,12 @@ const Favorites = () => {
   const [photoToDelete, setPhotoToDelete] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const modalRef = useRef(null);
-  const { isAuthenticated, authTokens } = useAuth();
+  const { isAuthenticated, authTokens, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  if(authLoading) {
+    return <LoadingSpinner />;
+  }
 
   useEffect(() => {
     // Retrieve the view mode from local storage
@@ -27,6 +32,8 @@ const Favorites = () => {
   }, [viewMode]);
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (!isAuthenticated || !authTokens?.access) {
       navigate('/login');
       return;
@@ -49,7 +56,7 @@ const Favorites = () => {
     };
 
     fetchFavorites();
-  }, [isAuthenticated, authTokens, navigate]);
+  }, [isAuthenticated, authTokens, authLoading, navigate]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -92,19 +99,14 @@ const Favorites = () => {
 
   if (isLoading) {
     return (
-      <div className="p-8">
-        <div className="flex items-center justify-center h-full">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        </div>
-      </div>
-    );
-  }
+      <LoadingSpinner />
+  )}
 
   return (
-    <div className="p-8">
+    <div className="p-6">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Favorite Photos</h1>
+          <h1 className="text-3xl font-bold ml-12 sm:ml-0">Favorite Photos</h1>
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setViewMode('grid')}
