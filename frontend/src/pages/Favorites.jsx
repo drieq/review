@@ -104,7 +104,7 @@ const Favorites = () => {
 
   return (
     <div className="p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold ml-12 sm:ml-0">Favorite Photos</h1>
           <div className="flex items-center space-x-2">
