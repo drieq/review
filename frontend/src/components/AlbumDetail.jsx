@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useDropzone } from "react-dropzone";
 import PhotoCard from './PhotoCard';
 import PhotoListItem from './PhotoListItem';
+import AlbumTagManager from './AlbumTagManager';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/axios';
 
@@ -21,6 +22,7 @@ const AlbumDetail = () => {
   const [photoToDelete, setPhotoToDelete] = useState(null);
   const [showDeleteAlbumModal, setShowDeleteAlbumModal] = useState(false);
   const [editedTags, setEditedTags] = useState([]);
+  const [albumTags, setAlbumTags] = useState([]);
   const titleInputRef = useRef(null);
   const descriptionInputRef = useRef(null);
   const modalRef = useRef(null);
@@ -40,6 +42,12 @@ const AlbumDetail = () => {
     // Save the view mode to local storage whenever it changes
     localStorage.setItem('viewMode', viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    if (album && album.tags) {
+      setAlbumTags(album.tags);
+    }
+  }, [album]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -307,15 +315,17 @@ const AlbumDetail = () => {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center">
-            <label className="block mr-4 text-sm font-medium text-gray-700 mb-1">Tags</label>
-            <div className="flex flex-wrap gap-2">
-              {editedTags.map((tag) => (
-                <span key={tag.id} className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                  {tag.name}
-                </span>
-              ))}
-            </div>
+          {/* Album Tag Manager */}
+          <div className="mb-8">
+            <AlbumTagManager 
+                albumId={albumId} 
+                initialTags={album.tags || []} 
+                onTagsUpdated={(newTags) => {
+                  setAlbumTags(newTags);
+                  setEditedTags(newTags);
+                  setAlbum(prev => ({ ...prev, tags: newTags }));
+                }}
+            />
           </div>
 
 

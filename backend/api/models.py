@@ -53,9 +53,13 @@ class Photo(models.Model):
     
 class AlbumTag(models.Model):
     name = models.CharField(max_length=50)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tags')
 
     def __str__(self):
         return self.name
+    
+    class Meta:
+        unique_together = ('name', 'user')
 
 class Album(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='albums')

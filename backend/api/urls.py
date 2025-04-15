@@ -5,7 +5,7 @@ from . import views
 router = DefaultRouter()
 router.register(r'photos', views.PhotoViewSet)
 router.register(r'albums', views.AlbumViewSet)
-router.register(r'tags', views.TagViewSet, basename='tag')
+router.register(r'tags', views.AlbumTagViewSet, basename='tag')
 
 urlpatterns = [
     path('csrf/', views.get_csrf_token, name='get_csrf_token'),

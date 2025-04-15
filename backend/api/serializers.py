@@ -50,6 +50,10 @@ class AlbumTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = AlbumTag
         fields = ['id', 'name']
+    
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
 
 class AlbumSerializer(serializers.ModelSerializer):
     cover_photo = serializers.SerializerMethodField()
@@ -69,23 +73,29 @@ class AlbumSerializer(serializers.ModelSerializer):
         return None
     
     def create(self, validated_data):
-        tags_data = validated_data.pop('tags')
+        tags_data = validated_data.pop('tags', [])
         album = Album.objects.create(**validated_data)
+        
         for tag_data in tags_data:
-            tag, created = AlbumTag.objects.get_or_create(name=tag_data['name'])
-            album.tags.add(tag)
+            # Use get_or_create to ensure the tag is unique per user
+            tag, created = AlbumTag.objects.get_or_create(
+                name=tag_data['name'],
+                user=self.context['request'].user  # Ensure the tag is unique per user
+            )
+            album.tags.add(tag)  # Add the tag to the album's tags
+        
         return album
     
     def update(self, instance, validated_data):
-        tags_data = validated_data.pop('tags')
+        tags_data = validated_data.pop('tags', [])
         instance.title = validated_data.get('title', instance.title)
         instance.description = validated_data.get('description', instance.description)
         instance.save()
 
-        instance.tags.clear()
+        instance.tags.clear()  # Clear existing tags
         for tag_data in tags_data:
-            tag, created = AlbumTag.objects.get_or_create(name=tag_data['name'])
-            instance.tags.add(tag)
+            tag, created = AlbumTag.objects.get_or_create(name=tag_data['name'], user=self.context['request'].user)
+            instance.tags.add(tag)  # Add the new tags
 
         return instance
 

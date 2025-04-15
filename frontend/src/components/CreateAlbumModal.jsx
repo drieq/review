@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import api from '../utils/axiosConfig';
 import { useNavigate } from 'react-router-dom';
+import TagCreator from './TagCreator';
 
 const CreateAlbumModal = ({ isOpen, onClose, onAlbumCreated }) => {
   const navigate = useNavigate();
@@ -8,7 +9,9 @@ const CreateAlbumModal = ({ isOpen, onClose, onAlbumCreated }) => {
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const modalRef = useRef(null);
+  
 
+  const [newTag, setNewTag] = useState(null);
   const [availableTags, setAvailableTags] = useState([]);
   const [selectedTagIds, setSelectedTagIds] = useState([]);
 
@@ -27,23 +30,57 @@ const CreateAlbumModal = ({ isOpen, onClose, onAlbumCreated }) => {
     }
   }, [isOpen]);
 
+  const handleTagAdd = (tagId) => {
+    console.log("Adding tag ID (no toggle):", tagId);
+    setSelectedTagIds((prev) => {
+        // Only add if not already present
+        if (!prev.includes(tagId)) {
+            const newSelection = [...prev, tagId];
+            console.log("New selection after add:", newSelection);
+            return newSelection;
+        }
+        return prev;
+    });
+  };
+
   const handleTagToggle = (tagId) => {
-    setSelectedTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
-    );
+    console.log("Toggling tag ID:", tagId);
+    setSelectedTagIds((prev) => {
+        const newSelection = prev.includes(tagId) 
+            ? prev.filter((id) => id !== tagId) 
+            : [...prev, tagId];
+        console.log("New selection after toggle:", newSelection);
+        return newSelection;
+    });
+  };
+
+  const handleTagCreation = (createdTag) => {
+    console.log("New tag created:", createdTag);
+    
+    // Update availableTags
+    setAvailableTags((prevTags) => {
+        const updatedTags = [...prevTags, createdTag];
+        console.log("Updated available tags:", updatedTags);
+        return updatedTags;
+    });
+    
+    // Add to selectedTagIds
+    setSelectedTagIds((prevIds) => {
+        const updatedIds = [...prevIds, createdTag.id];
+        console.log("Updated selected tag IDs:", updatedIds);
+        return updatedIds;
+    });
   };
 
   useEffect(() => {
     const handleEscKey = (e) => {
       if (e.key === 'Escape' && isOpen) {
-        isOpen = false;
         onClose();
       }
     };
 
     const handleClickOutside = (e) => {
       if (modalRef.current && !modalRef.current.contains(e.target)) {
-        isOpen = false;
         onClose();
       }
     };
@@ -62,17 +99,23 @@ const CreateAlbumModal = ({ isOpen, onClose, onAlbumCreated }) => {
     e.preventDefault();
     setError('');
 
+    const currentSelectedIds = [...selectedTagIds];
+    console.log("Current selected IDs before submission:", currentSelectedIds);
+  
     try {
-      const selectedTags = availableTags
+      // Correctly format the tags data for the API
+      const tagsData = availableTags
         .filter((tag) => selectedTagIds.includes(tag.id))
         .map((tag) => ({ name: tag.name }));
 
+      console.log("Tags data to send:", tagsData);
+  
       const response = await api.post('/api/albums/', {
         title,
         description,
-        tags: selectedTags,
+        tags: tagsData  // Send the properly formatted tag objects
       });
-
+  
       onAlbumCreated(response.data);
       setTitle('');
       setDescription('');
@@ -127,22 +170,13 @@ const CreateAlbumModal = ({ isOpen, onClose, onAlbumCreated }) => {
             />
           </div>
 
-          {/* Tag Selection */}
-          <div>
-            <p className="mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Tags:</p>
-            <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto">
-              {availableTags.map((tag) => (
-                <label key={tag.id} className="flex items-center space-x-1 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selectedTagIds.includes(tag.id)}
-                    onChange={() => handleTagToggle(tag.id)}
-                  />
-                  <span>{tag.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+          <TagCreator
+            availableTags={availableTags}
+            selectedTagIds={selectedTagIds}  // Ensure this is passed correctly and directly reflects the updated state
+            onTagCreated={handleTagCreation}
+            onTagSelect={handleTagToggle}
+            onTagAdd={handleTagAdd}
+          />
 
           {error && (
             <div className="text-red-500 text-sm">{error}</div>

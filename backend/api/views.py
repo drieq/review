@@ -244,10 +244,15 @@ class UserViewSet(viewsets.ViewSet):
         serializer = UserSerializer(user)
         return Response(serializer.data)
     
-class TagViewSet(viewsets.ModelViewSet):
-    queryset = AlbumTag.objects.all()
+class AlbumTagViewSet(viewsets.ModelViewSet):
     serializer_class = AlbumTagSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return AlbumTag.objects.filter(user=self.request.user)
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
