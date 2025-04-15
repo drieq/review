@@ -2,7 +2,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import Photo, Album
+from .models import Photo, Album, AlbumTag
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.conf import settings
 
@@ -46,13 +46,19 @@ class PhotoSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'description', 'image', 'created_at']
         read_only_fields = ['created_at']
 
+class AlbumTagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AlbumTag
+        fields = ['id', 'name']
+
 class AlbumSerializer(serializers.ModelSerializer):
     cover_photo = serializers.SerializerMethodField()
     photos = PhotoSerializer(many=True, read_only=True)
+    tags = AlbumTagSerializer(many=True)
 
     class Meta:
         model = Album
-        fields = ['id', 'title', 'description', 'owner', 'cover_photo', 'photos', 'created_at']
+        fields = ['id', 'title', 'description', 'owner', 'cover_photo', 'photos', 'created_at', 'tags']
         read_only_fields = ['owner', 'created_at']
 
     def get_cover_photo(self, obj):
@@ -61,6 +67,27 @@ class AlbumSerializer(serializers.ModelSerializer):
         if first_photo:
             return first_photo.image.url
         return None
+    
+    def create(self, validated_data):
+        tags_data = validated_data.pop('tags')
+        album = Album.objects.create(**validated_data)
+        for tag_data in tags_data:
+            tag, created = AlbumTag.objects.get_or_create(name=tag_data['name'])
+            album.tags.add(tag)
+        return album
+    
+    def update(self, instance, validated_data):
+        tags_data = validated_data.pop('tags')
+        instance.title = validated_data.get('title', instance.title)
+        instance.description = validated_data.get('description', instance.description)
+        instance.save()
+
+        instance.tags.clear()
+        for tag_data in tags_data:
+            tag, created = AlbumTag.objects.get_or_create(name=tag_data['name'])
+            instance.tags.add(tag)
+
+        return instance
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):

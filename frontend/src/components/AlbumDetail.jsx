@@ -20,6 +20,7 @@ const AlbumDetail = () => {
   const [editedDescription, setEditedDescription] = useState('');
   const [photoToDelete, setPhotoToDelete] = useState(null);
   const [showDeleteAlbumModal, setShowDeleteAlbumModal] = useState(false);
+  const [editedTags, setEditedTags] = useState([]);
   const titleInputRef = useRef(null);
   const descriptionInputRef = useRef(null);
   const modalRef = useRef(null);
@@ -53,6 +54,7 @@ const AlbumDetail = () => {
         setPhotos(response.data.photos);
         setEditedTitle(response.data.title);
         setEditedDescription(response.data.description || '');
+        setEditedTags(response.data.tags || []);
         setError(null);
       } catch (err) {
         console.error('Error fetching album:', err);
@@ -110,10 +112,12 @@ const AlbumDetail = () => {
   };
 
   const handleSave = async () => {
+
     try {
       const response = await api.patch(`/api/albums/${albumId}/`, {
         title: editedTitle,
         description: editedDescription,
+        tags: editedTags.map(tag => ({ name: tag.name })), 
       });
       setAlbum(response.data);
       setIsEditingTitle(false);
@@ -245,61 +249,78 @@ const AlbumDetail = () => {
           </button>
         </div>
 
-        <div className="flex bg-white shadow-md rounded-lg p-6 mb-8">
-          <div className="mb-8 w-1/2 pe-3">
-            <div className="space-y-4">
-              {isEditingTitle ? (
-                <input
-                  ref={titleInputRef}
-                  type="text"
-                  value={editedTitle}
-                  onChange={handleTitleChange}
-                  onKeyDown={handleTitleKeyDown}
-                  onBlur={handleTitleBlur}
-                  className="w-full p-2 text-3xl font-bold text-gray-900 border-b-2 border-blue-500 focus:outline-none focus:ring-0"
-                  autoFocus
-                />
-              ) : (
-                <h1
-                  className="text-3xl font-bold text-gray-900 cursor-pointer hover:bg-gray-100 p-2 rounded border-b-2 border-transparent hover:border-gray-300"
-                  onClick={() => setIsEditingTitle(true)}
-                >
-                  {album?.title}
-                </h1>
-              )}
+        <div className="bg-white shadow-md rounded-lg p-6 mb-8">
+          <div className="flex">
+            <div className="mb-8 w-1/2 pe-3">
+              <div className="space-y-4">
+                {isEditingTitle ? (
+                  <input
+                    ref={titleInputRef}
+                    type="text"
+                    value={editedTitle}
+                    onChange={handleTitleChange}
+                    onKeyDown={handleTitleKeyDown}
+                    onBlur={handleTitleBlur}
+                    className="w-full p-2 text-3xl font-bold text-gray-900 border-b-2 border-blue-500 focus:outline-none focus:ring-0"
+                    autoFocus
+                  />
+                ) : (
+                  <h1
+                    className="text-3xl font-bold text-gray-900 cursor-pointer hover:bg-gray-100 p-2 rounded border-b-2 border-transparent hover:border-gray-300"
+                    onClick={() => setIsEditingTitle(true)}
+                  >
+                    {album?.title}
+                  </h1>
+                )}
 
-              {isEditingDescription ? (
-                <textarea
-                  ref={descriptionInputRef}
-                  value={editedDescription}
-                  onChange={handleDescriptionChange}
-                  onBlur={handleDescriptionBlur}
-                  className="w-full p-2 text-gray-600 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
-                  rows="3"
-                  autoFocus
-                />
-              ) : (
-                <p
-                  className="text-gray-600 cursor-pointer hover:bg-gray-100 p-2 rounded border border-transparent hover:border-gray-300 min-h-[80px]"
-                  onClick={() => setIsEditingDescription(true)}
-                >
-                  {album?.description || 'Click to add a description'}
-                </p>
-              )}
+                {isEditingDescription ? (
+                  <textarea
+                    ref={descriptionInputRef}
+                    value={editedDescription}
+                    onChange={handleDescriptionChange}
+                    onBlur={handleDescriptionBlur}
+                    className="w-full p-2 text-gray-600 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px]"
+                    rows="3"
+                    autoFocus
+                  />
+                ) : (
+                  <p
+                    className="text-gray-600 cursor-pointer hover:bg-gray-100 p-2 rounded border border-transparent hover:border-gray-300 min-h-[80px]"
+                    onClick={() => setIsEditingDescription(true)}
+                  >
+                    {album?.description || 'Click to add a description'}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div
+              {...getRootProps()}
+              className={`w-1/2 flex items-center justify-center border-2 border-dashed rounded-lg p-8 text-center mb-8 ${
+                isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+              }`}
+            >
+              <input {...getInputProps()} />
+              <p className="text-gray-600 opacity-50 w-full">
+                Drag and drop photos here, or click to select files
+              </p>
             </div>
           </div>
 
-          <div
-            {...getRootProps()}
-            className={`w-1/2 flex items-center justify-center border-2 border-dashed rounded-lg p-8 text-center mb-8 ${
-              isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-            }`}
-          >
-            <input {...getInputProps()} />
-            <p className="text-gray-600 opacity-50 w-full">
-              Drag and drop photos here, or click to select files
-            </p>
+          <div className="mt-4 flex items-center">
+            <label className="block mr-4 text-sm font-medium text-gray-700 mb-1">Tags</label>
+            <div className="flex flex-wrap gap-2">
+              {editedTags.map((tag) => (
+                <span key={tag.id} className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                  {tag.name}
+                </span>
+              ))}
+            </div>
           </div>
+
+
+
+
         </div>
 
         <div className="flex justify-between items-center mb-6">

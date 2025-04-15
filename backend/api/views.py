@@ -19,8 +19,8 @@ from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from allauth.socialaccount.models import SocialAccount
 import requests
 
-from .models import Photo, Album, Favorite, UserProfile
-from .serializers import PhotoSerializer, AlbumSerializer, UserSerializer, CustomTokenObtainPairSerializer
+from .models import Photo, Album, Favorite, UserProfile, AlbumTag
+from .serializers import PhotoSerializer, AlbumSerializer, UserSerializer, CustomTokenObtainPairSerializer, AlbumTagSerializer
 
 User = get_user_model()
 
@@ -243,6 +243,11 @@ class UserViewSet(viewsets.ViewSet):
         user = request.user
         serializer = UserSerializer(user)
         return Response(serializer.data)
+    
+class TagViewSet(viewsets.ModelViewSet):
+    queryset = AlbumTag.objects.all()
+    serializer_class = AlbumTagSerializer
+    permission_classes = [IsAuthenticated]
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

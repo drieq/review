@@ -27,10 +27,10 @@ export const AuthProvider = ({ children }) => {
           });
 
           if (response.status === 200) {
+            const userData = await api.get('/api/current_user');
+
             setIsAuthenticated(true);
-            setUser({
-              username: localStorage.getItem('username')
-            });
+            setUser(userData.data);
           } else {
             // Token is invalid, clear it
             localStorage.removeItem('access');

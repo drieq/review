@@ -50,12 +50,19 @@ class Photo(models.Model):
 
     def __str__(self):
         return self.title
+    
+class AlbumTag(models.Model):
+    name = models.CharField(max_length=50)
+
+    def __str__(self):
+        return self.name
 
 class Album(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='albums')
     title = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    tags = models.ManyToManyField(AlbumTag, related_name='albums', blank=True)
 
     class Meta:
         ordering = ['-created_at']

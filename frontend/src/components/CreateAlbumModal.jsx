@@ -9,6 +9,30 @@ const CreateAlbumModal = ({ isOpen, onClose, onAlbumCreated }) => {
   const [error, setError] = useState('');
   const modalRef = useRef(null);
 
+  const [availableTags, setAvailableTags] = useState([]);
+  const [selectedTagIds, setSelectedTagIds] = useState([]);
+
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const response = await api.get('/api/tags/');
+        setAvailableTags(response.data);
+      } catch (err) {
+        console.error('Error fetching tags:', err);
+      }
+    };
+
+    if (isOpen) {
+      fetchTags();
+    }
+  }, [isOpen]);
+
+  const handleTagToggle = (tagId) => {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+    );
+  };
+
   useEffect(() => {
     const handleEscKey = (e) => {
       if (e.key === 'Escape' && isOpen) {
@@ -39,13 +63,20 @@ const CreateAlbumModal = ({ isOpen, onClose, onAlbumCreated }) => {
     setError('');
 
     try {
+      const selectedTags = availableTags
+        .filter((tag) => selectedTagIds.includes(tag.id))
+        .map((tag) => ({ name: tag.name }));
+
       const response = await api.post('/api/albums/', {
         title,
         description,
+        tags: selectedTags,
       });
+
       onAlbumCreated(response.data);
       setTitle('');
       setDescription('');
+      setSelectedTagIds([]);
       onClose();
       navigate(`/albums/${response.data.id}`);
     } catch (err) {
@@ -95,6 +126,24 @@ const CreateAlbumModal = ({ isOpen, onClose, onAlbumCreated }) => {
               rows={3}
             />
           </div>
+
+          {/* Tag Selection */}
+          <div>
+            <p className="mb-2 text-sm font-medium text-gray-900 dark:text-white">Select Tags:</p>
+            <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto">
+              {availableTags.map((tag) => (
+                <label key={tag.id} className="flex items-center space-x-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectedTagIds.includes(tag.id)}
+                    onChange={() => handleTagToggle(tag.id)}
+                  />
+                  <span>{tag.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           {error && (
             <div className="text-red-500 text-sm">{error}</div>
           )}

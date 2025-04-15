@@ -18,6 +18,8 @@ const AppRoutes = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userData, setUserData] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [hasFetchedData, setHasFetchedData] = useState(false);
+
 
   // useEffect(() => {
   //   if (user) {
@@ -25,19 +27,47 @@ const AppRoutes = () => {
   //   }
   // }, [user]);
 
+  // useEffect(() => {
+  //   console.log("isAuthenticatd:", isAuthenticated);
+  //   console.log("userData:", userData);
+  //   if (!hasFetchedData && !userData) {
+  //     const fetchUserData = async () => {
+  //       try {
+  //         const response = await api.get('/api/current_user/'); // Ensure this matches your backend URL
+  //         setUserData(response.data);
+  //         setHasFetchedData(true);  // Set the flag to prevent further fetches
+
+  //       } catch (error) {
+  //         console.error('Error fetching user data:', error);
+  //       }
+  //     };
+
+  //     fetchUserData();
+  //   }
+  // }, [hasFetchedData, userData, isAuthenticated]);
+
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const response = await api.get('/api/current_user/'); // Ensure this matches your backend URL
-        setUserData(response.data);
-
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      }
-    };
-
-    fetchUserData();
-  }, []);
+    console.log("hasFetchedData:", hasFetchedData);
+    console.log("user:", user);
+  
+    if (user && !hasFetchedData) {
+      // Prevent fetching again by setting hasFetchedData to true immediately
+      setHasFetchedData(true);
+  
+      // Now make the request only once
+      const fetchUserData = async () => {
+        try {
+          const response = await api.get('/api/current_user/');  // Ensure this is your correct backend URL
+          setUserData(response.data);
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+      };
+  
+      fetchUserData();
+    }
+  }, [user, hasFetchedData]);  // Only run when 'user' or 'hasFetchedData' changes
+  
 
   const updateUserData = async () => {
     try {

@@ -1,20 +1,38 @@
 import { FiGrid, FiStar, FiSettings, FiLogOut, FiMenu } from 'react-icons/fi';
 import { useNavigate, NavLink } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import LoadingSpinner from './LoadingSpinner';
 import logo from '../assets/logo.svg';
 import api from '../utils/axiosConfig';
 import defaultAvatar from '../assets/default-avatar.png';
+import { debounce } from 'lodash';
 
 
-const Sidebar = ({ username, onLogout, userData,onUserDataUpdate, sidebarOpen, toggleSidebar }) => {
+const Sidebar = ({ username, onLogout, userData, onUserDataUpdate, sidebarOpen, toggleSidebar }) => {
   const navigate = useNavigate();
+  const prevUserDataRef = useRef();
+
+  // Debounced version of updateUserData
+  const debouncedUpdateUserData = useRef(
+    debounce((userData) => {
+      if (onUserDataUpdate) {
+        onUserDataUpdate(userData);
+      }
+    }, 500) // Adjust delay time as needed
+  );
 
   useEffect(() => {
-    if (onUserDataUpdate) {
-      onUserDataUpdate(userData);
+    if (prevUserDataRef.current) {
+      // Compare the relevant fields in the userData object
+      if (prevUserDataRef.current.name !== userData.name || prevUserDataRef.current.avatar !== userData.avatar) {
+        debouncedUpdateUserData.current(userData);
+      }
     }
-  }, [userData]);
+
+    // Update the ref with the current userData to use in the next render
+    prevUserDataRef.current = userData;
+
+  }, [userData]); // This will only run when userData changes
 
   const handleLogout = () => {
     onLogout();

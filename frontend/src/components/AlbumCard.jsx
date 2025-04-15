@@ -10,9 +10,10 @@ const AlbumCard = ({ album }) => {
     };
 
     return (
-        <div key={album.id} className="album-card aspect-w-4 aspect-h-3 max-w-sm bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
+        <div key={album.id} className="album-card aspect-w-4 aspect-h-3 w-full bg-white border border-gray-200 rounded-lg shadow-sm dark:bg-gray-800 dark:border-gray-700">
             <a href="#"
                 onClick={(e) => handleClick(e, album.id)}
+                className="relative"
             >
                 {album.cover_photo ? (
                     <img
@@ -23,6 +24,18 @@ const AlbumCard = ({ album }) => {
                 ) : (
                     <div className="w-full h-48 bg-gray-300 flex justify-center items-center">
                         <span className="text-gray-500">No cover photo</span>
+                    </div>
+                )}
+                {album.tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2 absolute bottom-0 left-0 ml-2 mb-2">
+                    {album.tags.map(tag => (
+                        <span
+                        key={tag.id}
+                        className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full"
+                        >
+                        {tag.name}
+                        </span>
+                    ))}
                     </div>
                 )}
             </a>

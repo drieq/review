@@ -14,17 +14,19 @@ const UserProfile = ({ onUserDataUpdate, successMessage, setSuccessMessage }) =>
 
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const response = await api.get('/api/current_user/'); // Ensure this matches your backend URL
-        setUserData(response.data);
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      }
-    };
+    if (!userData) {
+      const fetchUserData = async () => {
+        try {
+          const response = await api.get('/api/current_user/'); // Ensure this matches your backend URL
+          setUserData(response.data);
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+      };
 
-    fetchUserData();
-  }, []);
+      fetchUserData();
+    }
+  }, [userData]);
 
   const handleAvatarChange = (e) => {
     setAvatar(e.target.files[0]); // Set the selected file
