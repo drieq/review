@@ -12,6 +12,8 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
+  const query = new URLSearchParams(useLocation().search);
+  const confirmed = query.get("confirmed");
 
   useEffect(() => {
     if (location.state?.message) {
@@ -39,6 +41,7 @@ const LoginPage = () => {
 
     try {
       const success = await login({ email, password });
+  
       if (success) {
         navigate('/');
       } else {
@@ -46,7 +49,14 @@ const LoginPage = () => {
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError('An error occurred during login. Please try again.');
+  
+      if (
+        err?.response?.data?.detail === 'Please confirm your email before logging in.'
+      ) {
+        setError('Please confirm your email before logging in.');
+      } else {
+        setError('Invalid email or password.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -107,6 +117,8 @@ const LoginPage = () => {
               {success}
             </div>
           )}
+          {confirmed && <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">Your account has been confirmed. Please log in.</div>}
+          {error === "invalid_token" && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">Invalid or expired confirmation link.</div>}
           
           <form className="space-y-6" onSubmit={handleLogin}>
             <div>

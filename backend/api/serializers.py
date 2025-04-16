@@ -2,9 +2,11 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import Photo, Album, AlbumTag
+from .models import Photo, Album, AlbumTag, UserProfile, LoginAttempt
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.conf import settings
+from django.core.exceptions import ValidationError
+
 
 User = get_user_model()
 
@@ -13,32 +15,146 @@ User = get_user_model()
 #         model = User
 #         fields = ('id', 'email', 'first_name', 'last_name', 'password')
 
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+    password_confirm = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+    
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password', 'password_confirm']
+        extra_kwargs = {
+            'email': {'required': True},
+            'username': {'required': True},
+        }
+    
+    def validate(self, attrs):
+        if attrs['password'] != attrs['password_confirm']:
+            raise serializers.ValidationError({"password": "Password fields didn't match."})
+        
+        # Validate password strength
+        try:
+            validate_password(attrs['password'])
+        except ValidationError as e:
+            raise serializers.ValidationError({"password": list(e)})
+        
+        # Check if email already exists
+        if User.objects.filter(email=attrs['email']).exists():
+            raise serializers.ValidationError({"email": "Email address already in use."})
+            
+        return attrs
+    
+    def create(self, validated_data):
+        validated_data.pop('password_confirm')
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data['password'],
+            is_active=True  # User can login but certain features will be limited until email is confirmed
+        )
+        return user
+
 class UserSerializer(serializers.ModelSerializer):
     avatar = serializers.ImageField(source='userprofile.avatar', required=False)
+    email_confirmed = serializers.BooleanField(source='userprofile.email_confirmed', read_only=True)
+
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'avatar']
+        fields = ['id', 'username', 'email', 'avatar', 'email_confirmed']
         extra_kwargs = {
             'email': {'required': True},
             'username': {'required': True},
         }
 
-    def validate(self, attrs):
-        # Remove password validation since it's not needed for GET requests
-        return attrs
+    # def validate(self, attrs):
+    #     # Remove password validation since it's not needed for GET requests
+    #     return attrs
 
     def update(self, instance, validated_data):
+        userprofile_data = validated_data.pop('userprofile', {})
         # Update the user instance with the validated data
         instance.username = validated_data.get('username', instance.username)
         instance.email = validated_data.get('email', instance.email)
+        instance.save()
 
         # Update avatar if provided
-        if 'avatar' in validated_data:
-            instance.avatar = validated_data['avatar']
+        if 'avatar' in userprofile_data:
+            instance.userprofile.avatar = userprofile_data['avatar']
+            instance.userprofile.save()
 
-        instance.save()
         return instance
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    
+    def validate_email(self, value):
+        try:
+            User.objects.get(email=value)
+        except User.DoesNotExist:
+            # Don't reveal if the email exists or not (security best practice)
+            pass
+        return value
+    
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True, required=True)
+    password_confirm = serializers.CharField(write_only=True, required=True)
+    token = serializers.CharField(required=True)
+    uidb64 = serializers.CharField(required=True)
+    
+    def validate(self, attrs):
+        if attrs['password'] != attrs['password_confirm']:
+            raise serializers.ValidationError({"password": "Password fields didn't match."})
+        
+        try:
+            validate_password(attrs['password'])
+        except ValidationError as e:
+            raise serializers.ValidationError({"password": list(e)})
+            
+        return attrs
+    
+class EmailConfirmationSerializer(serializers.Serializer):
+    token = serializers.UUIDField(required=True)
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        # Get the username or email from the request
+        username_or_email = attrs.get('username')
+        
+        # Try to find user by email if the input contains @
+        if '@' in username_or_email:
+            try:
+                user = User.objects.get(email=username_or_email)
+                attrs['username'] = user.username
+            except User.DoesNotExist:
+                raise serializers.ValidationError('No active account found with the given credentials')
+        
+        # Check if the user's email is confirmed
+        try:
+            # Get the user first to check if it exists
+            if '@' in username_or_email:
+                user = User.objects.get(email=username_or_email)
+            else:
+                user = User.objects.get(username=username_or_email)
+                
+            # Check if email is confirmed for certain actions
+            if not user.userprofile.email_confirmed:
+                # You can either prevent login completely or just warn the user
+                # For now, we'll allow login but include a flag in the response
+                pass
+                
+        except User.DoesNotExist:
+            # We'll handle this in the parent validate method
+            pass
+        
+        # Call the parent class's validate method
+        data = super().validate(attrs)
+        
+        # Add user information to the response
+        data['username'] = self.user.username
+        data['email'] = self.user.email
+        data['email_confirmed'] = self.user.userprofile.email_confirmed
+        
+        return data
 
 class PhotoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -107,15 +223,20 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Try to find user by email if the input contains @
         if '@' in username_or_email:
             try:
-                user = User.objects.get(email=username_or_email)
-                attrs['username'] = user.username
-            except User.DoesNotExist:
-                raise serializers.ValidationError('No active account found with the given credentials')
-        
-        # Call the parent class's validate method
-        data = super().validate(attrs)
-        
-        # Add username to the response
-        data['username'] = self.user.username
-        
-        return data
+                data = super().validate(attrs)
+
+                if not self.user.userprofile.email_confirmed:
+                    data['email_confirmed'] = False
+                    data['message'] = "Your email is not yet confirmed. Please check your email."
+                else:
+                    data['email_confirmed'] = True
+
+                # Add user information to the response
+                data['username'] = self.user.username
+                data['email'] = self.user.email
+                
+                return data
+            
+            except serializers.ValidationError as e:
+                # Re-raise the original exception
+                raise e

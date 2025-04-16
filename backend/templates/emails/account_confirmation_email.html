@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Confirm Your Account</title>
+</head>
+<body>
+    <h1>Hello {{ user.username }}!</h1>
+    
+    <p>Thank you for registering. Please confirm your email address by clicking the link below:</p>
+    
+    <p><a href="{{ confirmation_link }}">{{ confirmation_link }}</a></p>
+    
+    <p>This link will expire in 48 hours.</p>
+    
+    <p>If you did not create this account, you can safely ignore this email.</p>
+    
+    <p>Best regards,<br>Your App Team</p>
+</body>
+</html>

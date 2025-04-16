@@ -7,7 +7,7 @@ const RegistrationPage = () => {
     username: '',
     email: '',
     password: '',
-    password2: '',
+    password_confirm: '',
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -26,10 +26,10 @@ const RegistrationPage = () => {
     setIsLoading(true);
 
     try {
-      await api.post('/api/register/', formData);
+      await api.post('/api/auth/register/', formData);
       // Redirect to login page with success message
       navigate('/login', {
-        state: { message: 'Registration successful! You can now log in.' }
+        state: { message: 'Please check your email to activate your account.' }
       });
     } catch (err) {
       console.error('Registration error:', err);
@@ -95,17 +95,17 @@ const RegistrationPage = () => {
               />
             </div>
             <div>
-              <label htmlFor="password2" className="sr-only">
+              <label htmlFor="password_confirm" className="sr-only">
                 Confirm Password
               </label>
               <input
-                id="password2"
-                name="password2"
+                id="password_confirm"
+                name="password_confirm"
                 type="password"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 placeholder="Confirm Password"
-                value={formData.password2}
+                value={formData.password_confirm}
                 onChange={handleChange}
               />
             </div>

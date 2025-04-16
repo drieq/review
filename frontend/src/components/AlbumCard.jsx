@@ -40,6 +40,13 @@ const AlbumCard = ({ album }) => {
                 )}
             </a>
             <div className="p-4">
+                <h5 className="text-sm text-gray-400 font-light">
+                    {new Date(album.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                    })}
+                </h5>
                 <h3 className="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{album.title}</h3>
                 <p className="mb-3 font-normal text-gray-700 dark:text-gray-400">{album.description}</p>
                 <a href="#"

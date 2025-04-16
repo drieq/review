@@ -302,31 +302,34 @@ const AlbumDetail = () => {
               </div>
             </div>
 
-            <div
-              {...getRootProps()}
-              className={`w-1/2 flex items-center justify-center border-2 border-dashed rounded-lg p-8 text-center mb-8 ${
-                isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-              }`}
-            >
-              <input {...getInputProps()} />
-              <p className="text-gray-600 opacity-50 w-full">
-                Drag and drop photos here, or click to select files
-              </p>
-            </div>
+            <div className="flex flex-col w-1/2">
+              {/* Album Tag Manager */}
+              <div className="mb-8">
+                <AlbumTagManager 
+                    albumId={albumId} 
+                    initialTags={album.tags || []} 
+                    onTagsUpdated={(newTags) => {
+                      setAlbumTags(newTags);
+                      setEditedTags(newTags);
+                      setAlbum(prev => ({ ...prev, tags: newTags }));
+                    }}
+                />
+              </div>
+              <div
+                {...getRootProps()}
+                className={`w-full flex items-center justify-center border-2 border-dashed rounded-lg p-8 text-center mb-8 ${
+                  isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                }`}
+              >
+                <input {...getInputProps()} />
+                <p className="text-gray-600 opacity-50 w-full">
+                  Drag and drop photos here, or click to select files
+                </p>
+              </div>
+            </div>  
           </div>
 
-          {/* Album Tag Manager */}
-          <div className="mb-8">
-            <AlbumTagManager 
-                albumId={albumId} 
-                initialTags={album.tags || []} 
-                onTagsUpdated={(newTags) => {
-                  setAlbumTags(newTags);
-                  setEditedTags(newTags);
-                  setAlbum(prev => ({ ...prev, tags: newTags }));
-                }}
-            />
-          </div>
+
 
 
 

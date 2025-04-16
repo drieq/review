@@ -1,14 +1,18 @@
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from django.utils import timezone
 from django.utils.html import strip_tags
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
 from django.conf import settings
 from django.middleware.csrf import get_token
 
-from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import viewsets, status, permissions, generics
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,10 +21,18 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from allauth.socialaccount.models import SocialAccount
-import requests
+from uuid import uuid4
+import requests, uuid
 
-from .models import Photo, Album, Favorite, UserProfile, AlbumTag
-from .serializers import PhotoSerializer, AlbumSerializer, UserSerializer, CustomTokenObtainPairSerializer, AlbumTagSerializer
+from datetime import timedelta
+
+from .models import Photo, Album, Favorite, UserProfile, AlbumTag, LoginAttempt
+from .serializers import (
+    UserSerializer, PhotoSerializer, AlbumSerializer, AlbumTagSerializer,
+    UserRegistrationSerializer, PasswordResetRequestSerializer,
+    PasswordResetConfirmSerializer, EmailConfirmationSerializer,
+    CustomTokenObtainPairSerializer
+)
 
 User = get_user_model()
 
@@ -42,20 +54,20 @@ def update_user(request):
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def register(request):
-    serializer = UserSerializer(data=request.data)
-    if serializer.is_valid():
-        user = serializer.save()
-        user.is_active = True  # Activate user immediately
-        user.save()
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def register(request):
+#     serializer = UserSerializer(data=request.data)
+#     if serializer.is_valid():
+#         user = serializer.save()
+#         user.is_active = True  # Activate user immediately
+#         user.save()
         
-        return Response(
-            {'message': 'Registration successful. You can now log in.'}, 
-            status=status.HTTP_201_CREATED
-        )
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#         return Response(
+#             {'message': 'Registration successful. You can now log in.'}, 
+#             status=status.HTTP_201_CREATED
+#         )
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -224,9 +236,6 @@ class AlbumUploadView(APIView):
         serializer = PhotoSerializer(photos, many=True)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer
-
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_csrf_token(request):
@@ -236,11 +245,24 @@ def get_csrf_token(request):
     token = get_token(request)
     return JsonResponse({'csrfToken': token})
 
-class UserViewSet(viewsets.ViewSet):
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
-
-    def retrieve(self, request, pk=None):
-        user = request.user
+    
+    def get_queryset(self):
+        # Users should only be able to see their own profile
+        if self.action == 'list':
+            return User.objects.filter(id=self.request.user.id)
+        return super().get_queryset()
+    
+    def get_permissions(self):
+        if self.action == 'create':
+            return [AllowAny()]
+        return super().get_permissions()
+    
+    @action(detail=False, methods=['get'])
+    def me(self, request):
         serializer = UserSerializer(user)
         return Response(serializer.data)
     
@@ -290,3 +312,282 @@ def update_avatar(request):
         return Response({'message': 'Avatar updated successfully.'})
 
     return Response({'error': 'No avatar provided.'}, status=400)
+
+# Custom TokenObtainPairView with login attempt tracking
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+    
+    def post(self, request, *args, **kwargs):
+        username = request.data.get('username', '')
+        ip_address = self.get_client_ip(request)
+        
+        # Check for too many failed attempts
+        try:
+            recent_failed_attempts = LoginAttempt.objects.filter(
+                username=username,
+                ip_address=ip_address,
+                was_successful=False,
+                attempted_at__gte=timezone.now() - timedelta(minutes=15)
+            ).count()
+            
+            if recent_failed_attempts >= 5:
+                return Response(
+                    {"detail": "Too many failed login attempts. Please try again later."},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error checking login attempts: {str(e)}")
+        
+        # Validate credentials first
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            # Still record the failed attempt
+            LoginAttempt.objects.create(
+                username=username,
+                ip_address=ip_address,
+                was_successful=False
+            )
+            raise
+
+        user = serializer.user
+
+        # Check if email is confirmed
+        try:
+            if not user.userprofile.email_confirmed:
+                return Response(
+                    {"detail": "Please confirm your email before logging in."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except UserProfile.DoesNotExist:
+            return Response(
+                {"detail": "User profile not found. Contact support."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Generate tokens
+        refresh = serializer.validated_data['refresh']
+        access = serializer.validated_data['access']
+
+        # Record successful login
+        LoginAttempt.objects.create(
+            username=username,
+            ip_address=ip_address,
+            was_successful=True
+        )
+
+        response = Response({
+            'refresh': str(refresh),
+            'access': str(access),
+        })
+
+        return response
+        
+        # Record the login attempt
+        try:
+            was_successful = response.status_code == 200
+            LoginAttempt.objects.create(
+                username=username,
+                ip_address=ip_address,
+                was_successful=was_successful
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error checking login attempts: {str(e)}")
+        
+        return response
+    
+    def get_client_ip(self, request):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip
+
+class UserRegistrationView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    permission_classes = [AllowAny]
+    serializer_class = UserRegistrationSerializer
+    
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        try:
+            profile = user.userprofile
+        except UserProfile.DoesNotExist:
+            profile = UserProfile.objects.create(
+                user=user,
+                email_confirmation_token=uuid4(),
+                email_confirmation_sent_date=timezone.now()
+            )
+        
+        try:
+            profile.send_confirmation_email()
+        except Exception as e:
+            print(f"Error sending confirmation email: {str(e)}")
+        
+      # Log the email confirmation attempt to help with debugging
+        print(f"Sending confirmation email to {user.email}")
+        
+        return Response({
+            "username": user.username,
+            "email": user.email,
+            "detail": "User registered successfully. Please check your email to confirm your account.",
+            "is_confirmed": False,
+            "next_steps": [
+                "Check your email for the confirmation link",
+                "Click the link to activate your account",
+                "Log in with your credentials once activated"
+            ]
+        }, status=status.HTTP_201_CREATED)
+
+class EmailConfirmationView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = EmailConfirmationSerializer
+    
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        try:
+            print(f"Looking up token: {serializer.validated_data['token']}")
+            profile = UserProfile.objects.get(email_confirmation_token=serializer.validated_data['token'])
+            
+            # Check if the token is expired (48 hours)
+            if profile.email_confirmation_sent_date and timezone.now() > profile.email_confirmation_sent_date + timedelta(hours=48):
+                # Generate a new token and send a new email
+                profile.email_confirmation_token = uuid.uuid4()
+                profile.send_confirmation_email()
+                return Response({
+                    "detail": "Confirmation link expired. A new confirmation email has been sent.",
+                    "email": profile.user.email
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            profile.email_confirmed = True
+            profile.save()
+            
+            return Response({
+                "detail": "Email confirmed successfully. You can now log in.",
+                "email": profile.user.email,
+                "username": profile.user.username
+            }, status=status.HTTP_200_OK)
+        except UserProfile.DoesNotExist:
+            print(f"No profile found with token: {serializer.validated_data['token']}")
+            return Response({"detail": "Invalid confirmation token."}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(f"Error confirming email: {str(e)}")
+            return Response({"detail": f"Error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PasswordResetRequestView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetRequestSerializer
+    
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        email = serializer.validated_data['email']
+        
+        try:
+            user = User.objects.get(email=email)
+            self.send_password_reset_email(user)
+        except User.DoesNotExist:
+            # Don't reveal if the email exists or not
+            pass
+        
+        return Response({"detail": "Password reset email has been sent if the email exists in our system."}, status=status.HTTP_200_OK)
+    
+    def send_password_reset_email(self, user):
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        
+        reset_link = f"{settings.SITE_URL}/reset-password/{uid}/{token}/"
+        
+        context = {
+            'user': user,
+            'reset_link': reset_link,
+        }
+        
+        message = render_to_string('emails/password_reset_email.html', context)
+        
+        send_mail(
+            'Reset your password',
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            html_message=message,
+            fail_silently=False,
+        )
+
+class PasswordResetConfirmView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetConfirmSerializer
+    
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        try:
+            uid = force_str(urlsafe_base64_decode(serializer.validated_data['uidb64']))
+            user = User.objects.get(pk=uid)
+            
+            if not default_token_generator.check_token(user, serializer.validated_data['token']):
+                return Response({"detail": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            user.set_password(serializer.validated_data['password'])
+            user.save()
+            
+            return Response({"detail": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({"detail": "Invalid reset link."}, status=status.HTTP_400_BAD_REQUEST)
+
+class ResendConfirmationEmailView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        profile = user.userprofile
+        
+        if profile.email_confirmed:
+            return Response({"detail": "Email is already confirmed."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if we've sent too many emails recently (anti-spam measure)
+        if profile.email_confirmation_sent_date and timezone.now() < profile.email_confirmation_sent_date + timedelta(minutes=5):
+            return Response({"detail": "Please wait 5 minutes before requesting another confirmation email."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        
+        # Generate a new token and send a new email
+        profile.email_confirmation_token = uuid.uuid4()
+        profile.send_confirmation_email()
+        
+        return Response({"detail": "Confirmation email has been sent."}, status=status.HTTP_200_OK)
+    
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def confirm_email_direct(request, token):
+    try:
+        profile = UserProfile.objects.get(email_confirmation_token=token)
+
+        if profile.email_confirmed:
+            return redirect(f'http://localhost:5173/login?confirmed=true&user={profile.user.username}')
+
+        if profile.email_confirmation_sent_date and timezone.now() > profile.email_confirmation_sent_date + timedelta(hours=48):
+            profile.email_confirmation_token = uuid.uuid4()
+            profile.send_confirmation_email()
+            return redirect('http://localhost:5173/login?expired=true')
+
+        profile.email_confirmed = True
+        profile.save()
+        return redirect(f'http://localhost:5173/login?confirmed=true&user={profile.user.username}')
+    
+    except UserProfile.DoesNotExist:
+        return redirect('http://localhost:5173/login?error=invalid_token')
+
+    except Exception as e:
+        return redirect(f'http://localhost:5173/login?error=server_error')
