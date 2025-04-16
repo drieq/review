@@ -40,25 +40,25 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      const success = await login({ email, password });
+      const result = await login({ email, password });
+      console.log(result.error);
   
-      if (success) {
+      if (result.success) {
         navigate('/');
+      } else if (result.error === 'Please confirm your email before logging in.') {
+        setError('Please confirm your email before logging in.');
       } else {
         setError('Invalid email or password.');
       }
     } catch (err) {
       console.error('Login error:', err);
-  
-      if (
-        err?.response?.data?.detail === 'Please confirm your email before logging in.'
-      ) {
+      
+      const errorDetail = err?.response?.data?.detail;
+      if (errorDetail && errorDetail.includes('confirm your email')) {
         setError('Please confirm your email before logging in.');
       } else {
         setError('Invalid email or password.');
       }
-    } finally {
-      setIsLoading(false);
     }
   };
 

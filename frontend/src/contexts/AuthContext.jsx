@@ -64,6 +64,9 @@ export const AuthProvider = ({ children }) => {
           username: credentials,
           password: credentials
         });
+        if (!response.ok) {
+          return errorData = await response.json();
+        }
       } else if (credentials.access_token) {
         // Google OAuth login
         response = await api.post('/api/google/login/', {
@@ -94,10 +97,13 @@ export const AuthProvider = ({ children }) => {
         username: data.username
       });
       
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('Error during login:', error);
-      return false;
+      return { 
+        success: false,
+        error: error.response?.data?.detail || 'An error occurred during login. Please try again.'
+      };
     }
   };
 

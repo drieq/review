@@ -9,6 +9,7 @@ import Favorites from './pages/Favorites';
 import PrivateRoute from './components/PrivateRoute';
 import Sidebar from './components/Sidebar';
 import UserProfile from './components/UserProfile';
+import ClientAccessPage from './pages/ClientAccessPage';
 import api from './utils/axiosConfig';
 
 import './App.css'
@@ -19,32 +20,6 @@ const AppRoutes = () => {
   const [userData, setUserData] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [hasFetchedData, setHasFetchedData] = useState(false);
-
-
-  // useEffect(() => {
-  //   if (user) {
-  //     setUserData(user);
-  //   }
-  // }, [user]);
-
-  // useEffect(() => {
-  //   console.log("isAuthenticatd:", isAuthenticated);
-  //   console.log("userData:", userData);
-  //   if (!hasFetchedData && !userData) {
-  //     const fetchUserData = async () => {
-  //       try {
-  //         const response = await api.get('/api/current_user/'); // Ensure this matches your backend URL
-  //         setUserData(response.data);
-  //         setHasFetchedData(true);  // Set the flag to prevent further fetches
-
-  //       } catch (error) {
-  //         console.error('Error fetching user data:', error);
-  //       }
-  //     };
-
-  //     fetchUserData();
-  //   }
-  // }, [hasFetchedData, userData, isAuthenticated]);
 
   useEffect(() => {
     console.log("hasFetchedData:", hasFetchedData);
@@ -89,6 +64,7 @@ const AppRoutes = () => {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegistrationPage />} />
+        <Route path="/client-access/:token" element={<ClientAccessPage />} />
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     );

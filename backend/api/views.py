@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth.hashers import check_password
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -16,7 +17,9 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework import permissions
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenObtainPairView
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
@@ -26,7 +29,7 @@ import requests, uuid
 
 from datetime import timedelta
 
-from .models import Photo, Album, Favorite, UserProfile, AlbumTag, LoginAttempt
+from .models import Photo, Album, Favorite, UserProfile, AlbumTag, LoginAttempt, AccessLink, ClientSelection
 from .serializers import (
     UserSerializer, PhotoSerializer, AlbumSerializer, AlbumTagSerializer,
     UserRegistrationSerializer, PasswordResetRequestSerializer,
@@ -591,3 +594,76 @@ def confirm_email_direct(request, token):
 
     except Exception as e:
         return redirect(f'http://localhost:5173/login?error=server_error')
+    
+class ClientAlbumAccessView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, token):
+        print(f"Received request for token: {token}")  # Debugging line
+
+        try:
+            access_link = AccessLink.objects.select_related("album").get(token=token)
+        except AccessLink.DoesNotExist:
+            return Response({"error": "Invalid or expired link"}, status=404)
+
+        if access_link.expires_at and access_link.expires_at < timezone.now():
+            return Response({"error": "Link expired"}, status=403)
+        
+            # Check password
+        raw_password = request.query_params.get("password")
+
+        if access_link.password and not access_link.check_password(raw_password or ""):
+            return Response({"error": "Password required or incorrect"}, status=401)
+        
+        print(f"AccessLink token: {access_link.token}")
+        print(f"Request token: {token}")
+        print(f"Password provided: {raw_password}")
+
+        serializer = AlbumSerializer(access_link.album, context={"request": request})
+        return Response({
+            "album": serializer.data,
+            "can_download": access_link.can_download,
+            "max_selections": access_link.max_selections,
+            "welcome_message": access_link.welcome_message
+        })
+
+class ClientSelectionView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request, token, photo_id):
+        print("Incoming data:", request.data)  # 👈 Add this line
+
+        try:
+            access_link = AccessLink.objects.select_related('album').get(token=token)
+        except AccessLink.DoesNotExist:
+            return Response({"error": "Invalid token"}, status=404)
+
+        # 🔐 Check password
+        password = request.data.get("password")
+
+        print("Provided password:", password)  # 👈 Add this line
+        print("Actual album password:", access_link.password)  # 👈 Add this too
+
+
+        if not check_password(request.data.get("password", ""), access_link.password):
+            return Response({"error": "Unauthorized"}, status=401)
+
+        try:
+            photo = Photo.objects.get(id=photo_id, album=access_link.album)
+        except Photo.DoesNotExist:
+            return Response({"error": "Photo not found in this album"}, status=404)
+
+        # Enforce max selections
+        if access_link.max_selections is not None:
+            current_count = ClientSelection.objects.filter(access_link=access_link).count()
+            if current_count >= access_link.max_selections:
+                return Response({"error": "Max selections reached"}, status=403)
+
+        selection, created = ClientSelection.objects.get_or_create(
+            access_link=access_link,
+            photo=photo,
+            defaults={"selected": True}
+        )
+        if not created:
+            return Response({"message": "Already selected"}, status=200)
+
+        return Response({"message": "Photo selected"}, status=201)

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.urls import reverse
@@ -102,3 +103,45 @@ class LoginAttempt(models.Model):
     
     def __str__(self):
         return f"{self.username} - {self.ip_address} - {'Success' if self.was_successful else 'Failed'}"
+    
+class AccessLink(models.Model):
+    album = models.ForeignKey("Album", on_delete=models.CASCADE, related_name="access_links")
+    email = models.EmailField(blank=True, null=True)  # optional
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    password = models.CharField(max_length=128, blank=True, null=True)
+
+    can_download = models.BooleanField(default=False)
+    max_selections = models.PositiveIntegerField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    welcome_message = models.TextField(blank=True)
+    notify_on_selection = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.password and not self.password.startswith("pbkdf2_"):
+            self.password = make_password(self.password)
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        return self.expires_at and timezone.now() > self.expires_at
+
+    def get_share_url(self):
+        return f"http://localhost:5173/client-access/{self.token}/"
+
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        if self.password:
+            return check_password(raw_password, self.password)
+        return True
+    
+class ClientSelection(models.Model):
+    access_link = models.ForeignKey(AccessLink, on_delete=models.CASCADE, related_name="selections")
+    photo = models.ForeignKey("Photo", on_delete=models.CASCADE)
+    selected = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("access_link", "photo")  # one selection per photo per link

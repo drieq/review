@@ -29,6 +29,9 @@ urlpatterns = [
     path('auth/password-reset/', views.PasswordResetRequestView.as_view(), name='password_reset'),
     path('auth/password-reset/confirm/', views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 
+    path("client-access/<uuid:token>/", views.ClientAlbumAccessView.as_view(), name="client_album"),
+    path("client-access/<uuid:token>/select/<int:photo_id>/", views.ClientSelectionView.as_view(), name="client_select"),
+
 ]
 
 urlpatterns += router.urls

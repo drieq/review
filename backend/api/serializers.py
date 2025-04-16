@@ -2,7 +2,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import Photo, Album, AlbumTag, UserProfile, LoginAttempt
+from .models import Photo, Album, AlbumTag, UserProfile, LoginAttempt, AccessLink
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -240,3 +240,23 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             except serializers.ValidationError as e:
                 # Re-raise the original exception
                 raise e
+            
+class AccessLinkSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False)
+
+    class Meta:
+        model = AccessLink
+        fields = [
+            "id", "album", "email", "token", "can_download",
+            "max_selections", "expires_at", "welcome_message",
+            "notify_on_selection", "password", "get_share_url"
+        ]
+        read_only_fields = ["id", "token", "get_share_url"]
+
+    def create(self, validated_data):
+        password = validated_data.pop("password", None)
+        instance = super().create(validated_data)
+        if password:
+            instance.set_password(password)
+            instance.save()
+        return instance
