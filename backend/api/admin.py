@@ -23,5 +23,5 @@ class AccessLinkForm(forms.ModelForm):
 
 @admin.register(AccessLink)
 class AccessLinkAdmin(admin.ModelAdmin):
-    list_display = ("album", "token", "email", "expires_at", "can_download")
+    list_display = ("album", "token", "client_name", "email", "expires_at", "can_download")
     readonly_fields = ("token", "get_share_url")

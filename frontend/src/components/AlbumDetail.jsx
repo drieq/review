@@ -27,19 +27,28 @@ const AlbumDetail = () => {
   const descriptionInputRef = useRef(null);
   const modalRef = useRef(null);
   const deleteAlbumModalRef = useRef(null);
+  const accessLinkModalRef = useRef(null);
+  const [clientSelections, setClientSelections] = useState({});
+  const [selectedClient, setSelectedClient] = useState("");
+  const [clientNames, setClientNames] = useState([]);
+  const [showAccessLinkModal, setShowAccessLinkModal] = useState(false);
+
+  const [newLink, setNewLink] = useState({
+    client_name: "",
+    email: "",
+    can_download: false,
+    max_selections: "",
+    expires_at: "",
+    welcome_message: "",
+    notify_on_selection: true,
+    password: "",
+  });
 
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem('viewMode') || 'grid';
   });
 
-  // useEffect(() => {
-  //   // Retrieve the view mode from local storage
-  //   const savedViewMode = localStorage.getItem('viewMode') || 'grid';
-  //   setViewMode(savedViewMode);
-  // }, []);
-
   useEffect(() => {
-    // Save the view mode to local storage whenever it changes
     localStorage.setItem('viewMode', viewMode);
   }, [viewMode]);
 
@@ -58,11 +67,19 @@ const AlbumDetail = () => {
     const fetchAlbum = async () => {
       try {
         const response = await api.get(`/api/albums/${albumId}/`);
+        console.log(response)
         setAlbum(response.data);
         setPhotos(response.data.photos);
         setEditedTitle(response.data.title);
         setEditedDescription(response.data.description || '');
         setEditedTags(response.data.tags || []);
+        setClientSelections(response.data.client_selections || {});
+
+        if (response.data.access_links && Array.isArray(response.data.access_links)) {
+          setClientNames(response.data.access_links);
+          console.log(clientNames);
+        }
+
         setError(null);
       } catch (err) {
         console.error('Error fetching album:', err);
@@ -80,6 +97,18 @@ const AlbumDetail = () => {
     }
   }, [albumId, isAuthenticated, navigate]);
 
+  const getFilteredPhotos = () => {
+    if (!selectedClient) return photos;
+
+    const selectedClientLink = clientNames.find(link => link.id === selectedClient);
+    if (!selectedClientLink) return [];
+
+    const clientName = selectedClientLink.client_name;
+    const selectedPhotoIds = clientSelections[clientName] || [];
+
+    return photos.filter(photo => selectedPhotoIds.includes(photo.id));
+  };
+
   useEffect(() => {
     const handleEscKey = (e) => {
       if (e.key === 'Escape') {
@@ -88,6 +117,9 @@ const AlbumDetail = () => {
         }
         if (showDeleteAlbumModal) {
           setShowDeleteAlbumModal(false);
+        }
+        if (showAccessLinkModal) {
+          setShowAccessLinkModal(false);
         }
       }
     };
@@ -99,9 +131,12 @@ const AlbumDetail = () => {
       if (deleteAlbumModalRef.current && !deleteAlbumModalRef.current.contains(e.target)) {
         setShowDeleteAlbumModal(false);
       }
+      if (accessLinkModalRef.current && !accessLinkModalRef.current.contains(e.target)) {
+        setShowAccessLinkModal(false);
+      }
     };
 
-    if (photoToDelete || showDeleteAlbumModal) {
+    if (photoToDelete || showDeleteAlbumModal || showAccessLinkModal) {
       window.addEventListener('keydown', handleEscKey);
       window.addEventListener('mousedown', handleClickOutside);
     }
@@ -109,7 +144,7 @@ const AlbumDetail = () => {
       window.removeEventListener('keydown', handleEscKey);
       window.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [photoToDelete, showDeleteAlbumModal]);
+  }, [photoToDelete, showDeleteAlbumModal, showAccessLinkModal]);
 
   const handleTitleChange = (e) => {
     setEditedTitle(e.target.value);
@@ -214,6 +249,62 @@ const AlbumDetail = () => {
     }
   };
 
+  const handleNewLinkChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setNewLink({
+      ...newLink,
+      [name]: type === 'checkbox' ? checked : value
+    });
+  };
+
+  const createAccessLink = async (e) => {
+    e.preventDefault();
+    try {
+      // Format the data for the API
+      const linkData = {
+        ...newLink,
+        album: albumId,
+        // Convert empty string to null for optional fields
+        email: newLink.email || null,
+        max_selections: newLink.max_selections ? parseInt(newLink.max_selections) : null,
+        expires_at: newLink.expires_at || null
+      };
+  
+      console.log("Sending data to API:", linkData); // Debug what's being sent
+      
+      const response = await api.post('/api/client-access/auth/', linkData);
+      console.log("API response:", response.data); // Debug the response
+      
+      // Update the local state with the new link
+      setClientNames(prev => [...prev, response.data]);
+      
+      // Reset form and close modal
+      setNewLink({
+        client_name: "",
+        email: "",
+        can_download: false,
+        max_selections: "",
+        expires_at: "",
+        welcome_message: "",
+        notify_on_selection: true,
+        password: "",
+      });
+      setShowAccessLinkModal(false);
+      
+      // Optional: Display success message
+      setError(null);
+    } catch (err) {
+      console.error('Error creating access link:', err);
+      if (err.response) {
+        // Log the detailed error response from the server
+        console.error('Server error details:', err.response.data);
+        setError(`Failed to create access link: ${err.response.data.detail || 'Server error'}`);
+      } else {
+        setError('Failed to create access link. Please try again.');
+      }
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-8">
@@ -249,6 +340,12 @@ const AlbumDetail = () => {
             </svg>
             Back to Albums
           </button>
+          <button
+              onClick={() => setShowAccessLinkModal(true)}
+              className="px-4 py-2 cursor-pointer text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              Share with Client
+            </button>
           <button
             onClick={() => setShowDeleteAlbumModal(true)}
             className="px-4 py-2 cursor-pointer text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
@@ -336,13 +433,40 @@ const AlbumDetail = () => {
 
         </div>
 
+        {/* Client Filter Buttons */}
+        {clientNames.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4 mt-auto align-self-end">
+            <span>Available selections:</span>
+            <button
+              className={`px-3 py-1 rounded-full text-sm ${
+                selectedClient ? 'bg-gray-100 text-gray-700' : 'bg-blue-600 text-white'
+              }`}
+              variant={selectedClient ? "outline" : "default"}
+              onClick={() => setSelectedClient(null)}
+            >
+              All
+            </button>
+            {clientNames.map((link) => (
+              <button
+                key={link.id}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  selectedClient === link.id ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"
+                }`}
+                onClick={() => setSelectedClient(link.id)}
+              >
+                {link.client_name || "Unnamed Client"}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="flex justify-between items-center mb-6">
 
           <div className="flex items-center">
             <h2 className="text-2xl font-semibold">Photos</h2>
             {photos.length > 0 && (
                 <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">
-                  {photos.length}
+                  {getFilteredPhotos().length}
                 </span>
               )}
             </div>
@@ -388,7 +512,8 @@ const AlbumDetail = () => {
               ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4'
               : 'space-y-4'
           }`}>
-            {photos.map(photo => viewMode === 'grid' ? (
+              {console.log("Function:", getFilteredPhotos())}  {/* Add this to check if the function is triggered */}
+            {getFilteredPhotos().map(photo => viewMode === 'grid' ? (
               <PhotoCard
                 key={photo.id}
                 photo={photo}
@@ -462,7 +587,152 @@ const AlbumDetail = () => {
           </div>
         </div>
       )}
-    </div>
+
+    {showAccessLinkModal && (
+      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+        <div
+          ref={accessLinkModalRef}
+          className="bg-white rounded-lg p-6 max-w-lg w-full mx-4 overflow-y-auto max-h-[90vh]"
+        >
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Share Album with Client
+          </h3>
+          
+          <form onSubmit={createAccessLink} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Client Name*
+              </label>
+              <input
+                type="text"
+                name="client_name"
+                value={newLink.client_name}
+                onChange={handleNewLinkChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email (optional)
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={newLink.email}
+                onChange={handleNewLinkChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="client@example.com"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Password (optional)
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={newLink.password}
+                onChange={handleNewLinkChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Leave blank for no password"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Welcome Message
+              </label>
+              <textarea
+                name="welcome_message"
+                value={newLink.welcome_message}
+                onChange={handleNewLinkChange}
+                rows="3"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Welcome! Please select your favorite photos..."
+              ></textarea>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row sm:space-x-4">
+              <div className="w-full sm:w-1/2 mb-3 sm:mb-0">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Max Selections
+                </label>
+                <input
+                  type="number"
+                  name="max_selections"
+                  value={newLink.max_selections}
+                  onChange={handleNewLinkChange}
+                  min="0"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Unlimited"
+                />
+              </div>
+              
+              <div className="w-full sm:w-1/2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Expires At
+                </label>
+                <input
+                  type="datetime-local"
+                  name="expires_at"
+                  value={newLink.expires_at}
+                  onChange={handleNewLinkChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="can_download"
+                name="can_download"
+                checked={newLink.can_download}
+                onChange={handleNewLinkChange}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="can_download" className="text-sm text-gray-700">
+                Allow client to download photos
+              </label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="notify_on_selection"
+                name="notify_on_selection"
+                checked={newLink.notify_on_selection}
+                onChange={handleNewLinkChange}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="notify_on_selection" className="text-sm text-gray-700">
+                Notify me when client makes selections
+              </label>
+            </div>
+            
+            <div className="flex justify-end space-x-3 pt-3">
+              <button
+                type="button"
+                onClick={() => setShowAccessLinkModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Create Link
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+  </div>
   );
 };
 

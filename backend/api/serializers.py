@@ -2,7 +2,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import Photo, Album, AlbumTag, UserProfile, LoginAttempt, AccessLink
+from .models import Photo, Album, AlbumTag, UserProfile, LoginAttempt, AccessLink, ClientSelection
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -14,6 +14,26 @@ User = get_user_model()
 #     class Meta(UserCreateSerializer.Meta):
 #         model = User
 #         fields = ('id', 'email', 'first_name', 'last_name', 'password')
+
+class AccessLinkSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False)
+
+    class Meta:
+        model = AccessLink
+        fields = [
+            "id", "album", "client_name", "email", "token", "can_download",
+            "max_selections", "expires_at", "welcome_message",
+            "notify_on_selection", "password", "get_share_url"
+        ]
+        read_only_fields = ["id", "token", "get_share_url"]
+
+    def create(self, validated_data):
+        password = validated_data.pop("password", None)
+        instance = super().create(validated_data)
+        if password:
+            instance.set_password(password)
+            instance.save()
+        return instance
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
@@ -176,10 +196,12 @@ class AlbumSerializer(serializers.ModelSerializer):
     photos = PhotoSerializer(many=True, read_only=True)
     tags = AlbumTagSerializer(many=True)
     owner = serializers.StringRelatedField()
+    client_selections = serializers.SerializerMethodField()
+    access_links = AccessLinkSerializer(many=True, read_only=True)
 
     class Meta:
         model = Album
-        fields = ['id', 'title', 'description', 'owner', 'cover_photo', 'photos', 'created_at', 'tags']
+        fields = ['id', 'title', 'description', 'owner', 'cover_photo', 'photos', 'created_at', 'tags', 'client_selections', 'access_links']
         read_only_fields = ['owner', 'created_at']
 
     def get_cover_photo(self, obj):
@@ -215,6 +237,14 @@ class AlbumSerializer(serializers.ModelSerializer):
             instance.tags.add(tag)  # Add the new tags
 
         return instance
+    
+    def get_client_selections(self, album):
+        access_links = AccessLink.objects.filter(album=album)
+        data = {}
+        for link in access_links:
+            selections = ClientSelection.objects.filter(access_link=link).values_list('photo_id', flat=True)
+            data[link.client_name] = list(selections)
+        return data
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
@@ -241,23 +271,3 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             except serializers.ValidationError as e:
                 # Re-raise the original exception
                 raise e
-            
-class AccessLinkSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=False)
-
-    class Meta:
-        model = AccessLink
-        fields = [
-            "id", "album", "email", "token", "can_download",
-            "max_selections", "expires_at", "welcome_message",
-            "notify_on_selection", "password", "get_share_url"
-        ]
-        read_only_fields = ["id", "token", "get_share_url"]
-
-    def create(self, validated_data):
-        password = validated_data.pop("password", None)
-        instance = super().create(validated_data)
-        if password:
-            instance.set_password(password)
-            instance.save()
-        return instance

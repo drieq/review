@@ -108,6 +108,7 @@ class LoginAttempt(models.Model):
 class AccessLink(models.Model):
     album = models.ForeignKey("Album", on_delete=models.CASCADE, related_name="access_links")
     email = models.EmailField(blank=True, null=True)  # optional
+    client_name = models.CharField(max_length=50, blank=False)
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     password = models.CharField(max_length=128, blank=True, null=True)
 

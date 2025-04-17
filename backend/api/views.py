@@ -636,11 +636,19 @@ class ClientAlbumAccessView(ClientBaseView):
 
         access_link = token_obj.access_link
         serializer = AlbumSerializer(access_link.album, context={"request": request})
+
+        # selected_photo_ids = list(
+        #     ClientSelection.objects
+        #     .filter(access_link=access_link)
+        #     .values_list('photo_id', flat=True)
+        # )
+
         return Response({
             "album": serializer.data,
             "can_download": access_link.can_download,
             "max_selections": access_link.max_selections,
             "welcome_message": access_link.welcome_message,
+            # "selected_photo_ids": selected_photo_ids,
         })
 
 
