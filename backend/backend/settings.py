@@ -268,3 +268,5 @@ LOGGING = {
         },
     },
 }
+
+JWT_SECRET_KEY = 'verysecretkey' 

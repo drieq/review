@@ -30,8 +30,11 @@ urlpatterns = [
     path('auth/password-reset/confirm/', views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 
     path("client-access/<uuid:token>/", views.ClientAlbumAccessView.as_view(), name="client_album"),
-    path("client-access/<uuid:token>/select/<int:photo_id>/", views.ClientSelectionView.as_view(), name="client_select"),
-
+    path("client-access/<uuid:token>/select/<int:photo_id>/", views.ClientSelectPhotoView.as_view(), name="client_select"),
+    path("client-access/<uuid:token>/auth/", views.ClientAuthView.as_view(), name="client-access-auth"),
+    path('client-access/<str:token>/selections/', views.ClientGetSelectionsView.as_view()),
+    path('client-access/<str:token>/download/', views.ClientDownloadSelectedView.as_view()),
+    path('client-access/<str:token>/download-all/', views.ClientDownloadAllView.as_view()),
 ]
 
 urlpatterns += router.urls

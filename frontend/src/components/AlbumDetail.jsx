@@ -337,7 +337,17 @@ const AlbumDetail = () => {
         </div>
 
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold">Photos</h2>
+
+          <div className="flex items-center">
+            <h2 className="text-2xl font-semibold">Photos</h2>
+            {photos.length > 0 && (
+                <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded-full">
+                  {photos.length}
+                </span>
+              )}
+            </div>
+
+
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setViewMode('grid')}

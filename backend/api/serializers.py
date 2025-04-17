@@ -175,6 +175,7 @@ class AlbumSerializer(serializers.ModelSerializer):
     cover_photo = serializers.SerializerMethodField()
     photos = PhotoSerializer(many=True, read_only=True)
     tags = AlbumTagSerializer(many=True)
+    owner = serializers.StringRelatedField()
 
     class Meta:
         model = Album

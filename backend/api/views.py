@@ -1,16 +1,18 @@
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.hashers import check_password
+from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import PermissionDenied
 from django.core.mail import send_mail
+from django.http import JsonResponse, HttpResponse, FileResponse
+from django.middleware.csrf import get_token
+from django.shortcuts import get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.html import strip_tags
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
-from django.conf import settings
-from django.middleware.csrf import get_token
+from django.views.decorators.http import require_http_methods
 
 from rest_framework import viewsets, status, permissions, generics
 from rest_framework.decorators import api_view, permission_classes, action
@@ -25,17 +27,20 @@ from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from allauth.socialaccount.models import SocialAccount
 from uuid import uuid4
-import requests, uuid
 
-from datetime import timedelta
+import json, jwt, zipfile, io, os, requests, uuid
 
-from .models import Photo, Album, Favorite, UserProfile, AlbumTag, LoginAttempt, AccessLink, ClientSelection
+from datetime import timedelta, datetime
+
+from .models import Photo, Album, Favorite, UserProfile, AlbumTag, LoginAttempt, AccessLink, ClientSelection, ClientAccessToken
 from .serializers import (
     UserSerializer, PhotoSerializer, AlbumSerializer, AlbumTagSerializer,
     UserRegistrationSerializer, PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer, EmailConfirmationSerializer,
     CustomTokenObtainPairSerializer
 )
+from .authentication import ClientAccessTokenAuthentication
+
 
 User = get_user_model()
 
@@ -595,75 +600,140 @@ def confirm_email_direct(request, token):
     except Exception as e:
         return redirect(f'http://localhost:5173/login?error=server_error')
     
-class ClientAlbumAccessView(APIView):
+class ClientAuthView(APIView):
     permission_classes = [AllowAny]
 
-    def get(self, request, token):
-        print(f"Received request for token: {token}")  # Debugging line
-
+    def post(self, request, token):
+        password = request.data.get("password")
         try:
-            access_link = AccessLink.objects.select_related("album").get(token=token)
+            access_link = AccessLink.objects.get(token=token)
         except AccessLink.DoesNotExist:
-            return Response({"error": "Invalid or expired link"}, status=404)
+            return Response({"error": "Invalid link"}, status=404)
 
-        if access_link.expires_at and access_link.expires_at < timezone.now():
-            return Response({"error": "Link expired"}, status=403)
-        
-            # Check password
-        raw_password = request.query_params.get("password")
+        if not access_link.check_password(password):
+            return Response({"error": "Invalid password"}, status=401)
 
-        if access_link.password and not access_link.check_password(raw_password or ""):
-            return Response({"error": "Password required or incorrect"}, status=401)
-        
-        print(f"AccessLink token: {access_link.token}")
-        print(f"Request token: {token}")
-        print(f"Password provided: {raw_password}")
+        access_token = str(uuid.uuid4())
+        ClientAccessToken.objects.create(
+            token=access_token,
+            access_link=access_link,
+            expires_at=timezone.now() + timedelta(hours=2)
+        )
 
+        return Response({"access_token": access_token})
+
+
+class ClientBaseView(APIView):
+    authentication_classes = [ClientAccessTokenAuthentication]
+    permission_classes = [AllowAny]
+
+
+class ClientAlbumAccessView(ClientBaseView):
+    def get(self, request, token):
+        token_obj = request.auth
+        if not token_obj or not token_obj.is_valid():
+            return Response({"error": "Invalid or expired token"}, status=403)
+
+        access_link = token_obj.access_link
         serializer = AlbumSerializer(access_link.album, context={"request": request})
         return Response({
             "album": serializer.data,
             "can_download": access_link.can_download,
             "max_selections": access_link.max_selections,
-            "welcome_message": access_link.welcome_message
+            "welcome_message": access_link.welcome_message,
         })
 
-class ClientSelectionView(APIView):
-    permission_classes = [AllowAny]
+
+class ClientGetSelectionsView(ClientBaseView):
+    def get(self, request, token):
+        token_obj = request.auth
+        access_link = token_obj.access_link
+        selections = ClientSelection.objects.filter(access_link=access_link)
+
+        data = [
+            {
+                'id': sel.id,
+                'photo_id': sel.photo.id,
+                'selected_at': sel.created_at
+            } for sel in selections
+        ]
+        return JsonResponse({'selections': data})
+
+
+class ClientSelectPhotoView(ClientBaseView):
     def post(self, request, token, photo_id):
-        print("Incoming data:", request.data)  # 👈 Add this line
+        access_link = request.auth.access_link
+        photo = get_object_or_404(Photo, id=photo_id, album=access_link.album)
 
-        try:
-            access_link = AccessLink.objects.select_related('album').get(token=token)
-        except AccessLink.DoesNotExist:
-            return Response({"error": "Invalid token"}, status=404)
-
-        # 🔐 Check password
-        password = request.data.get("password")
-
-        print("Provided password:", password)  # 👈 Add this line
-        print("Actual album password:", access_link.password)  # 👈 Add this too
-
-
-        if not check_password(request.data.get("password", ""), access_link.password):
-            return Response({"error": "Unauthorized"}, status=401)
-
-        try:
-            photo = Photo.objects.get(id=photo_id, album=access_link.album)
-        except Photo.DoesNotExist:
-            return Response({"error": "Photo not found in this album"}, status=404)
-
-        # Enforce max selections
         if access_link.max_selections is not None:
-            current_count = ClientSelection.objects.filter(access_link=access_link).count()
-            if current_count >= access_link.max_selections:
-                return Response({"error": "Max selections reached"}, status=403)
+            if ClientSelection.objects.filter(access_link=access_link).count() >= access_link.max_selections:
+                return JsonResponse({'error': 'Max selections reached'}, status=403)
 
         selection, created = ClientSelection.objects.get_or_create(
             access_link=access_link,
             photo=photo,
             defaults={"selected": True}
         )
-        if not created:
-            return Response({"message": "Already selected"}, status=200)
 
-        return Response({"message": "Photo selected"}, status=201)
+        if not created:
+            return JsonResponse({'message': 'Already selected'})
+
+        return JsonResponse({'message': 'Photo selected'}, status=201)
+
+    def delete(self, request, token, photo_id):
+        access_link = request.auth.access_link
+        photo = get_object_or_404(Photo, id=photo_id, album=access_link.album)
+        try:
+            selection = ClientSelection.objects.get(access_link=access_link, photo=photo)
+            selection.delete()
+            return JsonResponse({'status': 'unselected'})
+        except ClientSelection.DoesNotExist:
+            return JsonResponse({'error': 'Selection not found'}, status=404)
+
+
+class ClientDownloadSelectedView(ClientBaseView):
+    def post(self, request, token):
+        access_link = request.auth.access_link
+
+        if not access_link.can_download:
+            return JsonResponse({'error': 'Downloads not allowed'}, status=403)
+
+        photo_ids = request.data.get('photo_ids', [])
+        if not photo_ids:
+            return JsonResponse({'error': 'No photos selected'}, status=400)
+
+        selections = ClientSelection.objects.filter(access_link=access_link, photo__id__in=photo_ids)
+        if not selections.exists():
+            return JsonResponse({'error': 'No valid selections found'}, status=404)
+
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for sel in selections:
+                path = sel.photo.image.path
+                name = f"{sel.photo.id}_{os.path.basename(path)}"
+                zip_file.write(path, name)
+
+        zip_buffer.seek(0)
+        return FileResponse(zip_buffer, as_attachment=True, filename=f"{access_link.album.title}_selected.zip")
+
+
+class ClientDownloadAllView(ClientBaseView):
+    def get(self, request, token):
+        access_link = request.auth.access_link
+
+        if not access_link.can_download:
+            return JsonResponse({'error': 'Downloads not allowed'}, status=403)
+
+        photos = Photo.objects.filter(album=access_link.album)
+        if not photos.exists():
+            return JsonResponse({'error': 'No photos found'}, status=404)
+
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for photo in photos:
+                path = photo.image.path
+                name = f"{photo.id}_{os.path.basename(path)}"
+                zip_file.write(path, name)
+
+        zip_buffer.seek(0)
+        return FileResponse(zip_buffer, as_attachment=True, filename=f"{access_link.album.title}_all_photos.zip")
